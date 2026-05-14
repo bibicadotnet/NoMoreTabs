@@ -1,0 +1,27 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "icon128.png",
+         "16": "icon16.png",
+         "48": "icon48.png"
+      },
+      "default_popup": "popup.html"
+   },
+   "content_scripts": [ {
+      "all_frames": true,
+      "js": [ "content.js" ],
+      "matches": [ "<all_urls>" ],
+      "run_at": "document_start"
+   } ],
+   "description": "Stop websites from opening unwanted new tabs. Includes iframe and shadow-dom protection.",
+   "host_permissions": [ "<all_urls>" ],
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAl6l+FHdZcGxcTJyr4aEPwn0G28t+4EUkVh/Z2/yOcExcRoIEOZMaqDhi5o36ziuEDgbsHxJUmitgNx6uQYJ+NZmuDIUI83wVJDiZlmXz9KMF6+bgLQGb8GDwYMSPhm75CiXJgNnMA3ycNZMc/OthTb7y1mhmd4oDBG5UvUGp+b5mHfc3c6gMRYQiS3eZEk7KvU2Sx1kCYou6s98/DvGt49WAEhxdGAgdRqU/M2KSDcskv1U1zwLt5ElxFLvDnvus+AJK/aK9kFESCv82l1W9ojglsym0CiRC3JwJ4BrvP+7RtaE83BClLJw2ZFAVQl2UlxHalfgqtKNZJaA/wDNWHQIDAQAB",
+   "manifest_version": 3,
+   "name": "NoMoreTabs",
+   "permissions": [ "scripting", "storage", "activeTab" ],
+   "version": "1.0",
+   "web_accessible_resources": [ {
+      "matches": [ "<all_urls>" ],
+      "resources": [ "inject.js", "allowlist.json" ]
+   } ]
+}

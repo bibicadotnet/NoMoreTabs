@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>NoMoreTabs Manager</title>
+    <style>
+        body {
+            width: 360px;
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 16px; margin: 0; color: #333;
+        }
+        h3 { margin: 0 0 16px 0; font-size: 16px; display: flex; align-items: center; justify-content: space-between; }
+        .status-badge {
+            font-size: 11px; background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 10px; font-weight: normal;
+        }
+        .section { margin-bottom: 20px; }
+        .section-title {
+            font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+        }
+        .section-title.blocked { color: #dc2626; }
+        .section-title.allowed { color: #15803d; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 12px; }
+        input { flex: 1; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; outline: none; font-size: 13px; }
+        input:focus { border-color: #2563eb; }
+        button.add-btn { background: #2563eb; color: white; border: none; border-radius: 6px; padding: 0 12px; cursor: pointer; font-weight: 500; font-size: 13px; }
+        button.add-btn:hover { background: #1d4ed8; }
+        ul { list-style: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto; }
+        li { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: #f9fafb; border-radius: 6px; margin-bottom: 6px; border: 1px solid #f3f4f6; font-size: 13px; }
+        li .host { font-family: monospace; color: #4b5563; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
+        .delete-btn { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 16px; padding: 4px; display: flex; align-items: center; }
+        .delete-btn:hover { color: #dc2626; }
+        .empty-state { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 12px; font-style: italic; padding: 8px; }
+        .current-site-buttons { display: flex; gap: 8px; margin-top: 12px; }
+        .current-site-btn {
+            flex: 1; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 12px; display: none;
+            border: 1px dashed; font-weight: 500;
+        }
+        .current-site-btn.block { background: #fef2f2; color: #dc2626; border-color: #dc2626; }
+        .current-site-btn.block:hover { background: #fee2e2; }
+        .current-site-btn.allow { background: #f0fdf4; color: #15803d; border-color: #15803d; }
+        .current-site-btn.allow:hover { background: #dcfce7; }
+    </style>
+</head>
+<body>
+    <h3>
+        NoMoreTabs
+        <span class="status-badge">Active</span>
+    </h3>
+
+    <div class="current-site-buttons">
+        <button id="block-current" class="current-site-btn block">Block current site</button>
+        <button id="allow-current" class="current-site-btn allow">Allow current site</button>
+    </div>
+
+    <div class="section">
+        <div class="section-title allowed">
+            <span>✓</span>
+            <span>Always Allowed Domains</span>
+        </div>
+        <div class="input-group">
+            <input type="text" id="new-allow-host" placeholder="example.com">
+            <button id="add-allow-btn" class="add-btn">Add</button>
+        </div>
+        <div id="allowlist-container">
+            <ul id="allowlist"></ul>
+            <div id="empty-allow-msg" class="empty-state">No allowed domains yet.</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title blocked">
+            <span>✗</span>
+            <span>Blocked Domains</span>
+        </div>
+        <div class="input-group">
+            <input type="text" id="new-block-host" placeholder="example.com">
+            <button id="add-block-btn" class="add-btn">Add</button>
+        </div>
+        <div id="blacklist-container">
+            <ul id="blacklist"></ul>
+            <div id="empty-block-msg" class="empty-state">No blocked websites yet.</div>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
