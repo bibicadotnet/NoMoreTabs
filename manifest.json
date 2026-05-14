@@ -1,9 +1,18 @@
 {
+   "name": "NoMoreTabs",
+   "version": "1.0",
+   "manifest_version": 3,
+   "description": "Stop websites from opening unwanted new tabs. Includes iframe and shadow-dom protection.",
+   "icons": {
+      "16": "app_icon_16.png",
+      "48": "app_icon_48.png",
+      "128": "app_icon_128.png"
+   },
    "action": {
       "default_icon": {
-         "128": "icon128.png",
-         "16": "icon16.png",
-         "48": "icon48.png"
+         "16": "app_icon_16.png",
+         "48": "app_icon_48.png",
+         "128": "app_icon_128.png"
       },
       "default_popup": "popup.html"
    },
@@ -19,18 +28,14 @@
          "run_at": "document_start"
       }
    ],
-   "description": "Stop websites from opening unwanted new tabs. Includes iframe and shadow-dom protection.",
    "host_permissions": [
       "<all_urls>"
    ],
-   "manifest_version": 3,
-   "name": "NoMoreTabs",
    "permissions": [
       "scripting",
       "storage",
       "activeTab"
    ],
-   "version": "1.0",
    "web_accessible_resources": [
       {
          "matches": [

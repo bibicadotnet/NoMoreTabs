@@ -14,6 +14,16 @@ function loadStaticAllowlist() {
     })
 }
 
+function isDomainInList(domain, list) {
+    return list.some(function(x) {
+        if (x.indexOf("*.") === 0) {
+            var b = x.slice(2);
+            return domain === b || domain.endsWith("." + b)
+        }
+        return domain === x
+    })
+}
+
 function injectScript() {
     try {
         var n = document.createElement("script");
@@ -40,33 +50,39 @@ function getHostname(n) {
 }
 
 function addToBlacklist(n) {
-    chrome.storage.sync.get(["blacklist", "allowlist"], function(e) {
-        var o = e.blacklist || [],
-            t = (e.allowlist || []).filter(function(e) {
-                return e !== n
-            });
-        o.includes(n) ? chrome.storage.sync.set({
-            allowlist: t
-        }) : (o.push(n), chrome.storage.sync.set({
-            blacklist: o,
-            allowlist: t
-        }))
+    loadStaticAllowlist().then(function(staticList) {
+        if (isDomainInList(n, staticList)) return; // Don't blacklist what is in static allowlist
+        chrome.storage.sync.get(["blacklist", "allowlist"], function(e) {
+            var o = e.blacklist || [],
+                t = (e.allowlist || []).filter(function(e) {
+                    return e !== n
+                });
+            o.includes(n) ? chrome.storage.sync.set({
+                allowlist: t
+            }) : (o.push(n), chrome.storage.sync.set({
+                blacklist: o,
+                allowlist: t
+            }))
+        })
     })
 }
 
 function addToAllowlist(n) {
-    chrome.storage.sync.get(["blacklist", "allowlist"], function(e) {
-        var o = e.blacklist || [],
-            t = e.allowlist || [],
-            a = o.filter(function(e) {
-                return e !== n
-            });
-        t.includes(n) ? chrome.storage.sync.set({
-            blacklist: a
-        }) : (t.push(n), chrome.storage.sync.set({
-            allowlist: t,
-            blacklist: a
-        }))
+    loadStaticAllowlist().then(function(staticList) {
+        if (isDomainInList(n, staticList)) return; // Already in static allowlist
+        chrome.storage.sync.get(["blacklist", "allowlist"], function(e) {
+            var o = e.blacklist || [],
+                t = e.allowlist || [],
+                a = o.filter(function(e) {
+                    return e !== n
+                });
+            t.includes(n) ? chrome.storage.sync.set({
+                blacklist: a
+            }) : (t.push(n), chrome.storage.sync.set({
+                allowlist: t,
+                blacklist: a
+            }))
+        })
     })
 }
 
@@ -100,23 +116,32 @@ function showConfirmationPopup(n, e, o, a) {
 
 function handleRequest(n) {
     if (window === window.top) {
-        var e = getHostname(n),
-            cur = location.hostname.toLowerCase();
+        var e = getHostname(n);
         loadStaticAllowlist().then(function(staticList) {
+            // Priority 1: Check static allowlist first
+            if (isDomainInList(e, staticList)) {
+                window.open(n, "_blank");
+                return;
+            }
+
             chrome.storage.sync.get(["blacklist", "allowlist"], function(t) {
                 var a = t.blacklist || [],
                     dynamicList = t.allowlist || [];
-                var al = staticList.concat(dynamicList);
-                var isAllowed = al.some(function(x) {
-                    if (x.indexOf("*.") === 0) {
-                        var b = x.slice(2);
-                        return e === b || e.endsWith("." + b)
-                    }
-                    return e === x
-                });
-                isAllowed ? window.open(n, "_blank") : a.includes(e) ? showConfirmationPopup(n, e, function() {}, !0) : showConfirmationPopup(n, e, function() {
-                    window.open(n, "_blank")
-                })
+                
+                // Priority 2: Check dynamic allowlist
+                if (isDomainInList(e, dynamicList)) {
+                    window.open(n, "_blank");
+                    return;
+                }
+
+                // Check blacklist
+                if (a.includes(e)) {
+                    showConfirmationPopup(n, e, function() {}, !0);
+                } else {
+                    showConfirmationPopup(n, e, function() {
+                        window.open(n, "_blank")
+                    });
+                }
             })
         })
     } else window.top.postMessage({
@@ -124,6 +149,7 @@ function handleRequest(n) {
         url: n
     }, "*")
 }
+
 chrome.storage.sync.get("allowlist", function(d) {
     var dynamicList = d.allowlist || [];
     loadStaticAllowlist().then(function(staticList) {

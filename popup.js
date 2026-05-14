@@ -1,5 +1,29 @@
 "use strict";
 
+var staticAllowlist = [],
+    staticLoaded = !1;
+
+function loadStaticAllowlist() {
+    if (staticLoaded) return Promise.resolve(staticAllowlist);
+    return fetch(chrome.runtime.getURL("allowlist.json")).then(function(n) {
+        return n.json()
+    }).then(function(n) {
+        return staticAllowlist = n, staticLoaded = !0, n
+    }).catch(function(n) {
+        return staticAllowlist = [], staticLoaded = !0, []
+    })
+}
+
+function isDomainInList(domain, list) {
+    return list.some(function(x) {
+        if (x.indexOf("*.") === 0) {
+            var b = x.slice(2);
+            return domain === b || domain.endsWith("." + b)
+        }
+        return domain === x
+    })
+}
+
 function getHostname(t) {
     try {
         return new URL(t.includes("http") ? t : "http://".concat(t)).hostname
@@ -38,42 +62,50 @@ function renderAllowlist() {
 
 function addToBlacklist(t) {
     var e = getHostname(t);
-    e && chrome.storage.sync.get(["blacklist", "allowlist"], function(t) {
-        var l = t.blacklist || [],
-            n = (t.allowlist || []).filter(function(t) {
-                return t !== e
-            });
-        l.includes(e) ? chrome.storage.sync.set({
-            allowlist: n
-        }, function() {
-            renderAllowlist()
-        }) : (l.push(e), chrome.storage.sync.set({
-            blacklist: l,
-            allowlist: n
-        }, function() {
-            renderBlacklist(), renderAllowlist(), document.getElementById("new-block-host").value = ""
-        }))
+    if (!e) return;
+    loadStaticAllowlist().then(function(staticList) {
+        if (isDomainInList(e, staticList)) return; // Protection
+        chrome.storage.sync.get(["blacklist", "allowlist"], function(t) {
+            var l = t.blacklist || [],
+                n = (t.allowlist || []).filter(function(t) {
+                    return t !== e
+                });
+            l.includes(e) ? chrome.storage.sync.set({
+                allowlist: n
+            }, function() {
+                renderAllowlist()
+            }) : (l.push(e), chrome.storage.sync.set({
+                blacklist: l,
+                allowlist: n
+            }, function() {
+                renderBlacklist(), renderAllowlist(), document.getElementById("new-block-host").value = ""
+            }))
+        })
     })
 }
 
 function addToAllowlist(t) {
     var e = getHostname(t);
-    e && chrome.storage.sync.get(["blacklist", "allowlist"], function(t) {
-        var l = t.blacklist || [],
-            n = t.allowlist || [],
-            o = l.filter(function(t) {
-                return t !== e
-            });
-        n.includes(e) ? chrome.storage.sync.set({
-            blacklist: o
-        }, function() {
-            renderBlacklist()
-        }) : (n.push(e), chrome.storage.sync.set({
-            allowlist: n,
-            blacklist: o
-        }, function() {
-            renderAllowlist(), renderBlacklist(), document.getElementById("new-allow-host").value = ""
-        }))
+    if (!e) return;
+    loadStaticAllowlist().then(function(staticList) {
+        if (isDomainInList(e, staticList)) return; // Protection
+        chrome.storage.sync.get(["blacklist", "allowlist"], function(t) {
+            var l = t.blacklist || [],
+                n = t.allowlist || [],
+                o = l.filter(function(t) {
+                    return t !== e
+                });
+            n.includes(e) ? chrome.storage.sync.set({
+                blacklist: o
+            }, function() {
+                renderBlacklist()
+            }) : (n.push(e), chrome.storage.sync.set({
+                allowlist: n,
+                blacklist: o
+            }, function() {
+                renderAllowlist(), renderBlacklist(), document.getElementById("new-allow-host").value = ""
+            }))
+        })
     })
 }
 
@@ -107,13 +139,23 @@ function checkCurrentTab() {
         if (t[0] && t[0].url) {
             var e = getHostname(t[0].url);
             if (e) {
-                var l = document.getElementById("block-current"),
-                    n = document.getElementById("allow-current");
-                l.innerText = "Block ".concat(e), n.innerText = "Allow ".concat(e), l.style.display = "block", n.style.display = "block", l.onclick = function() {
-                    addToBlacklist(e)
-                }, n.onclick = function() {
-                    addToAllowlist(e)
-                }
+                loadStaticAllowlist().then(function(staticList) {
+                    var l = document.getElementById("block-current"),
+                        n = document.getElementById("allow-current");
+                    
+                    // If domain is in static allowlist, hide the quick buttons
+                    if (isDomainInList(e, staticList)) {
+                        l.style.display = "none";
+                        n.style.display = "none";
+                        return;
+                    }
+
+                    l.innerText = "Block ".concat(e), n.innerText = "Allow ".concat(e), l.style.display = "block", n.style.display = "block", l.onclick = function() {
+                        addToBlacklist(e)
+                    }, n.onclick = function() {
+                        addToAllowlist(e)
+                    }
+                })
             }
         }
     })
