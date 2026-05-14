@@ -43,7 +43,10 @@
          ],
          "resources": [
             "inject.js",
-            "allowlist.json"
+            "allowlist.json",
+            "app_icon_16.png",
+            "app_icon_48.png",
+            "app_icon_128.png"
          ]
       }
    ]
