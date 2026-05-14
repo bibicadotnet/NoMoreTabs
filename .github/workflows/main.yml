@@ -21,44 +21,38 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REPO_NAME=${{ github.event.repository.name }}
+          # Filename set to NoMoreTabs.zip
+          ZIP_NAME="NoMoreTabs.zip"
           
-          # 1. Determine the TAG_NAME
+          # Determine the TAG_NAME
           TAG_NAME=${{ github.event.release.tag_name }}
           if [ -z "$TAG_NAME" ]; then
-            # Fallback to the latest tag if triggered manually
             git fetch --tags
-            TAG_NAME=$(git tag --sort=-v:refname | head -n 1)
-          fi
-
-          # If no tag exists at all, use 'v1.0' as default
-          if [ -z "$TAG_NAME" ]; then
-            TAG_NAME="v1.0"
+            TAG_NAME=$(git tag --sort=-v:refname | head -n 1 || echo "v1.0")
           fi
 
           echo "Target Tag: $TAG_NAME"
 
-          # 2. Create the release if it doesn't exist
+          # Ensure the release exists before uploading
           gh release view "$TAG_NAME" > /dev/null 2>&1 || gh release create "$TAG_NAME" --title "Release $TAG_NAME" --notes "Auto-generated release"
 
-          # 3. Zip the extension (excluding unnecessary files)
-          zip -r "${REPO_NAME}.zip" . -x "LICENSE" "README.md" ".git*" ".github*"
+          # Create the zip package
+          zip -r "$ZIP_NAME" . -x "LICENSE" "README.md" ".git*" ".github*"
           
-          # 4. Upload to the release
-          gh release upload "$TAG_NAME" "${REPO_NAME}.zip" --clobber
+          # Upload asset to the determined tag
+          gh release upload "$TAG_NAME" "$ZIP_NAME" --clobber
           
-          echo "Download URL: https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/${REPO_NAME}.zip"
+          # Output the permanent 'latest' download link
+          echo "Download URL: https://github.com/${{ github.repository }}/releases/latest/download/$ZIP_NAME"
 
       - name: Update latest branch
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Get current tag again for this step
           git fetch --tags
           TAG_NAME=$(git tag --sort=-v:refname | head -n 1 || echo "v1.0")
           
-          # Sync 'latest' branch with the target tag
           git checkout latest 2>/dev/null || git checkout -b latest
           git reset --hard "$TAG_NAME"
           git push origin latest --force
