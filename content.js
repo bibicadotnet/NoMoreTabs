@@ -9,7 +9,7 @@ const loadLists = async () => {
     };
 };
 
-const showPopup = (url, host, name = "_blank", specs = "") => {
+const showPopup = (url, host, name = "_blank", specs = "", source = "open") => {
     if (window !== window.top) {
         window.top.postMessage({ action: "NMT_IFRAME", url, name, specs }, "*");
         return;
@@ -69,8 +69,14 @@ const showPopup = (url, host, name = "_blank", specs = "") => {
                     }
                 });
             }
-            window.open(url, name, specs);
             container.remove();
+            if (source === 'location') {
+                // Navigation bị inject.js block → gửi NMT_DO_NAV để inject.js gọi origAssign
+                const token = document.documentElement.getAttribute('data-nmt-nav-token');
+                window.postMessage({ action: 'NMT_DO_NAV', url, token }, '*');
+            } else {
+                window.open(url, name, specs);
+            }
         };
 
     shadow.getElementById("b").onclick = () => {
@@ -105,10 +111,10 @@ syncData();
 
 window.addEventListener("message", e => {
     if (e.data?.action === 'NMT_ASK') {
-        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs);
+        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs, e.data.source);
     }
     if (e.data?.action === "NMT_IFRAME") {
-        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs);
+        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs, e.data.source);
     }
 });
 

@@ -23,6 +23,9 @@
          "js": [
             "content.js"
          ],
+         "css": [
+            "cleanup.css"
+         ],
          "matches": [
             "<all_urls>"
          ],
