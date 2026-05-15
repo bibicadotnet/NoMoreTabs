@@ -24,3 +24,6 @@ You can manage the trusted domains manually by editing `allowlist.json` in the e
 2. Open `chrome://extensions/` in your browser.
 3. Enable **Developer mode**.
 4. Click **Load unpacked** and select the extracted folder.
+
+---
+*Version: 1.1*

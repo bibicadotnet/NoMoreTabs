@@ -9,9 +9,9 @@ const loadLists = async () => {
     };
 };
 
-const showPopup = (url, host) => {
+const showPopup = (url, host, name = "_blank", specs = "") => {
     if (window !== window.top) {
-        window.top.postMessage({ action: "NMT_FWD", url }, "*");
+        window.top.postMessage({ action: "NMT_IFRAME", url, name, specs }, "*");
         return;
     }
     if (document.getElementById("nmt-container") || host === "unknown") return;
@@ -59,19 +59,19 @@ const showPopup = (url, host) => {
     alCb.onchange = () => alCb.checked && (blCb.checked = !1);
     blCb.onchange = () => blCb.checked && (alCb.checked = !1);
 
-    shadow.getElementById("c").onclick = () => {
-        if (alCb.checked) {
-            chrome.storage.sync.get(["allowlist", "blacklist"], (data) => {
-                let al = data.allowlist || [];
-                let bl = data.blacklist || [];
-                if (!al.includes(host)) {
-                    chrome.storage.sync.set({ allowlist: [...al, host], blacklist: bl.filter(i => i !== host) });
-                }
-            });
-        }
-        window.open(url, "_blank");
-        container.remove();
-    };
+        shadow.getElementById("c").onclick = () => {
+            if (alCb.checked) {
+                chrome.storage.sync.get(["allowlist", "blacklist"], (data) => {
+                    let al = data.allowlist || [];
+                    let bl = data.blacklist || [];
+                    if (!al.includes(host)) {
+                        chrome.storage.sync.set({ allowlist: [...al, host], blacklist: bl.filter(i => i !== host) });
+                    }
+                });
+            }
+            window.open(url, name, specs);
+            container.remove();
+        };
 
     shadow.getElementById("b").onclick = () => {
         if (blCb.checked) {
@@ -105,10 +105,10 @@ syncData();
 
 window.addEventListener("message", e => {
     if (e.data?.action === 'NMT_ASK') {
-        showPopup(e.data.url, getHost(e.data.url));
+        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs);
     }
-    if (e.data?.action === "NMT_FWD") {
-        showPopup(e.data.url, getHost(e.data.url));
+    if (e.data?.action === "NMT_IFRAME") {
+        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs);
     }
 });
 

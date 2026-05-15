@@ -8,6 +8,10 @@
     };
 
     const getAction = (url) => {
+        if (!url || url.startsWith('javascript:') || url.startsWith('mailto:') || url.startsWith('tel:') || url.startsWith('#')) {
+            return 'ALLOW';
+        }
+
         // Read directly from the attributes set by content.js
         const al = JSON.parse(document.documentElement.getAttribute("data-nmt-al") || "[]");
         const bl = JSON.parse(document.documentElement.getAttribute("data-nmt-bl") || "[]");
@@ -23,11 +27,11 @@
             if (checkMatch(tHost, bl)) return 'BLOCK';
             if (checkMatch(tHost, al)) return 'ALLOW';
 
-            // Cross-origin links are always suspicious
+            // IMPORTANT: If it's a cross-origin target, we should ASK
             if (target.origin !== location.origin) return 'ASK';
         } catch (e) {
-            // Treat weird/obfuscated URLs as suspicious
-            if (url && !url.includes('://') && !url.startsWith('/') && !url.startsWith('#')) return 'ASK';
+            // Treat weird/obfuscated URLs as suspicious, but ignore relative paths
+            if (url && !url.includes('://') && !url.startsWith('/') && !url.startsWith('.') && !url.startsWith('#')) return 'ASK';
         }
         
         return 'ALLOW';
