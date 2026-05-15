@@ -2,7 +2,7 @@
    "name": "NoMoreTabs",
    "version": "1.0",
    "manifest_version": 3,
-   "description": "Stop websites from opening unwanted new tabs. Includes iframe and shadow-dom protection.",
+   "description": "Stop websites from opening unwanted new tabs. Action-based protection.",
    "icons": {
       "16": "app_icon_16.png",
       "48": "app_icon_48.png",
@@ -26,15 +26,25 @@
             "<all_urls>"
          ],
          "run_at": "document_start"
+      },
+      {
+         "all_frames": true,
+         "js": [
+            "inject.js"
+         ],
+         "matches": [
+            "<all_urls>"
+         ],
+         "run_at": "document_start",
+         "world": "MAIN"
       }
    ],
    "host_permissions": [
       "<all_urls>"
    ],
    "permissions": [
-      "scripting",
       "storage",
-      "activeTab"
+      "scripting"
    ],
    "web_accessible_resources": [
       {
@@ -42,10 +52,7 @@
             "<all_urls>"
          ],
          "resources": [
-            "inject.js",
             "allowlist.json",
-            "app_icon_16.png",
-            "app_icon_48.png",
             "app_icon_128.png"
          ]
       }

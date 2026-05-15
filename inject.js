@@ -1,52 +1,81 @@
 (function() {
+    'use strict';
     const originalOpen = window.open;
-    
-    const checkMatch = (domain, list) => {
-        if (!domain) return false;
-        return list.some(x => x.startsWith('*.') ? 
-            (domain === x.slice(2) || domain.endsWith('.' + x.slice(2))) : 
-            domain === x);
+
+    const checkMatch = (host, list) => {
+        if (!host || !list) return false;
+        return list.some(x => x.startsWith('*.') ? (host === x.slice(2) || host.endsWith('.' + x.slice(2))) : host === x);
     };
 
-    const isAllowed = (url) => {
-        const al = JSON.parse(document.documentElement.dataset.nmtAllowlist || '[]');
-        const bl = JSON.parse(document.documentElement.dataset.nmtBlacklist || '[]');
+    const getAction = (url) => {
+        // Read directly from the attributes set by content.js
+        const al = JSON.parse(document.documentElement.getAttribute("data-nmt-al") || "[]");
+        const bl = JSON.parse(document.documentElement.getAttribute("data-nmt-bl") || "[]");
         const curHost = location.hostname.toLowerCase();
         
-        // If current site is trusted, allow everything
-        if (checkMatch(curHost, al)) return { allowed: true };
-        
-        if (!url || url === 'about:blank') return { allowed: false, blocked: true };
-        
+        // If the current site is whitelisted, allow everything
+        if (checkMatch(curHost, al)) return 'ALLOW';
+
         try {
             const target = new URL(url, location.href);
-            const targetHost = target.hostname.toLowerCase();
+            const tHost = target.hostname.toLowerCase();
             
-            if (target.origin === location.origin) return { allowed: true };
-            if (checkMatch(targetHost, al)) return { allowed: true };
-            if (checkMatch(targetHost, bl)) return { allowed: false, blocked: true }; // Already blacklisted
-            
-            return { allowed: false }; // Need to ask
+            if (checkMatch(tHost, bl)) return 'BLOCK';
+            if (checkMatch(tHost, al)) return 'ALLOW';
+
+            // Cross-origin links are always suspicious
+            if (target.origin !== location.origin) return 'ASK';
         } catch (e) {
-            return { allowed: true };
+            // Treat weird/obfuscated URLs as suspicious
+            if (url && !url.includes('://') && !url.startsWith('/') && !url.startsWith('#')) return 'ASK';
         }
+        
+        return 'ALLOW';
     };
 
+    // ACTION 1: window.open (Used by ads for same-origin pop-unders)
     window.open = function(url, name, specs) {
-        const res = isAllowed(url);
-        if (res.allowed) return originalOpen.call(window, url, name, specs);
-        if (!res.blocked) window.dispatchEvent(new CustomEvent('NMT_BLOCKED', { detail: { url: url || 'about:blank', name, specs } }));
+        const targetUrl = url || 'about:blank';
+        const action = getAction(targetUrl);
+
+        // For window.open, we NEVER blindly trust same-origin (unless the site itself is whitelisted)
+        // because that's how ad-redirects work.
+        if (action === 'ALLOW') {
+            try {
+                const target = new URL(targetUrl, location.href);
+                if (target.origin === location.origin) {
+                    const al = JSON.parse(document.documentElement.getAttribute("data-nmt-al") || "[]");
+                    if (!checkMatch(location.hostname.toLowerCase(), al)) {
+                        window.postMessage({ action: 'NMT_ASK', url: targetUrl, name, specs }, '*');
+                        return null;
+                    }
+                }
+            } catch(e) {}
+            return originalOpen.call(window, url, name, specs);
+        }
+        
+        if (action === 'BLOCK') return null;
+        
+        window.postMessage({ action: 'NMT_ASK', url: targetUrl, name, specs }, '*');
         return null;
     };
 
+    // ACTION 2: Direct link clicks
     document.addEventListener('click', e => {
-        const a = e.composedPath().find(el => el.tagName === 'A' && el.target === '_blank');
-        if (a) {
-            const res = isAllowed(a.href);
-            if (!res.allowed) {
+        const a = e.composedPath().find(el => el.tagName === 'A');
+        if (a && a.href) {
+            const action = getAction(a.href);
+            if (action === 'ASK') {
                 e.preventDefault();
-                if (!res.blocked) window.dispatchEvent(new CustomEvent('NMT_BLOCKED', { detail: { url: a.href } }));
+                window.postMessage({ action: 'NMT_ASK', url: a.href }, '*');
+            } else if (action === 'BLOCK') {
+                e.preventDefault();
             }
         }
     }, true);
+
+    // Visual cleanup
+    const style = document.createElement('style');
+    style.textContent = '.is-catfish, .modal-backdrop, .sspp-modal, .sspp-area { display: none !important; }';
+    (document.head || document.documentElement).appendChild(style);
 })();
