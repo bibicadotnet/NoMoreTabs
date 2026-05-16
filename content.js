@@ -1,20 +1,38 @@
 "use strict";
 
+// Storage keys:
+//   popupAllow  — SOURCE domains allowed to open tabs (whitelist)
+//   popupBlock  — SOURCE domains blocked from opening tabs completely
+//   navBlock    — DESTINATION domains blocked from navigation (manually added)
+
 const loadLists = async () => {
-    const staticList = await fetch(chrome.runtime.getURL("allowlist.json")).then(r => r.json()).catch(() => []);
-    const data = await chrome.storage.sync.get(["allowlist", "blacklist"]);
+    const staticList = await fetch(chrome.runtime.getURL("allowlist.json"))
+        .then(r => r.json()).catch(() => []);
+    const data = await chrome.storage.sync.get(["popupAllow", "popupBlock", "navBlock"]);
     return {
-        al: [...new Set([...staticList, ...(data.allowlist || [])])],
-        bl: data.blacklist || []
+        pal: [...new Set([...staticList, ...(data.popupAllow || [])])],
+        pbl: data.popupBlock || [],
+        nbl: data.navBlock   || []
     };
 };
 
-const showPopup = (url, host, name = "_blank", specs = "", source = "open") => {
+const syncData = async () => {
+    const { pal, pbl, nbl } = await loadLists();
+    document.documentElement.setAttribute("data-nmt-pal", JSON.stringify(pal));
+    document.documentElement.setAttribute("data-nmt-pbl", JSON.stringify(pbl));
+    document.documentElement.setAttribute("data-nmt-nbl", JSON.stringify(nbl));
+};
+
+syncData();
+chrome.storage.onChanged.addListener(syncData);
+
+// ── Popup UI ──────────────────────────────────────────────────────────────────
+const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
     if (window !== window.top) {
-        window.top.postMessage({ action: "NMT_IFRAME", url, name, specs }, "*");
+        window.top.postMessage({ action: "NMT_IFRAME", url, source, name, specs, isNav }, "*");
         return;
     }
-    if (document.getElementById("nmt-container") || host === "unknown") return;
+    if (document.getElementById("nmt-container")) return;
 
     const container = document.createElement("div");
     container.id = "nmt-container";
@@ -26,96 +44,106 @@ const showPopup = (url, host, name = "_blank", specs = "", source = "open") => {
 
     shadow.innerHTML = `
         <style>
-            .ov { position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;font-family:sans-serif; }
-            .cd { background:#fff;width:400px;padding:24px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.4);animation:popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-            .hd { display:flex;align-items:center;gap:12px;margin-bottom:16px; }
-            .hd img { width:24px;height:24px; }
-            .hd h3 { margin:0;font-size:16px;color:#111; }
-            .u { background:#f8fafc;padding:12px;border-radius:6px;font-size:13px;margin-bottom:20px;word-break:break-all;color:#334155;border:1px solid #e2e8f0;line-height:1.4; }
-            .ch-grp { display:flex;flex-direction:column;gap:10px;margin-bottom:24px; }
-            .ch { display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;color:#475569; }
-            .btns { display:flex;gap:12px;justify-content:flex-end; }
-            button { border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px;background:#1e293b;color:#fff;transition:all 0.2s;min-width:110px; }
-            button:hover { background:#0f172a; transform: translateY(-1px); }
-            @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            * { box-sizing: border-box; }
+            .ov { position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+            .cd { background:#fff;width:420px;padding:24px 24px 20px;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,0.35);animation:popIn 0.18s cubic-bezier(0.16,1,0.3,1); }
+            .hd { display:flex;align-items:center;gap:10px;margin-bottom:6px; }
+            .hd img { width:22px;height:22px;flex-shrink:0; }
+            .hd h3 { margin:0;font-size:15px;font-weight:700;color:#111; }
+            .src { font-size:13px;color:#475569;margin-bottom:12px;line-height:1.5; }
+            .src b { color:#0f172a; }
+            .dst-label { font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px; }
+            .dst { background:#f1f5f9;padding:9px 11px;border-radius:7px;font-size:12px;color:#475569;word-break:break-all;line-height:1.45;margin-bottom:18px; }
+            .ch-grp { display:flex;flex-direction:column;gap:8px;margin-bottom:20px; }
+            .ch { display:flex;align-items:center;gap:9px;font-size:13px;color:#334155;cursor:pointer;user-select:none; }
+            .ch input { width:15px;height:15px;accent-color:#1e293b;cursor:pointer;flex-shrink:0; }
+            .btns { display:flex;gap:10px;justify-content:flex-end; }
+            .btn { border:none;padding:9px 20px;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px;transition:background .15s; }
+            .btn-allow { background:#e2e8f0;color:#1e293b; }
+            .btn-allow:hover { background:#cbd5e1; }
+            .btn-block { background:#1e293b;color:#fff; }
+            .btn-block:hover { background:#0f172a; }
+            @keyframes popIn { from{transform:scale(0.94);opacity:0}to{transform:scale(1);opacity:1} }
         </style>
         <div class="ov">
             <div class="cd">
-                <div class="hd"><img src="${iconUrl}"><h3>Blocked Popup</h3></div>
-                <div class="u">${url}</div>
+                <div class="hd">
+                    <img src="${iconUrl}">
+                    <h3>Popup Blocked</h3>
+                </div>
+                <p class="src">
+                    <b>${source}</b> is trying to automatically open a ${isNav ? 'new page' : 'new tab'}:
+                </p>
+                <div class="dst-label">Destination URL</div>
+                <div class="dst">${url}</div>
                 <div class="ch-grp">
-                    <label class="ch"><input type="checkbox" id="al"> Always trust <b>${host}</b></label>
-                    <label class="ch"><input type="checkbox" id="bl"> Always block <b>${host}</b></label>
+                    <label class="ch">
+                        <input type="checkbox" id="cb-allow">
+                        Always allow <b>${source}</b> to open new tabs
+                    </label>
+                    <label class="ch">
+                        <input type="checkbox" id="cb-block">
+                        Always block <b>${source}</b> from opening new tabs
+                    </label>
                 </div>
                 <div class="btns">
-                    <button id="c" style="background:#64748b;">Allow Once</button>
-                    <button id="b">Don't Open</button>
+                    <button class="btn btn-allow" id="btn-open">Open once</button>
+                    <button class="btn btn-block" id="btn-block">Block</button>
                 </div>
             </div>
         </div>`;
 
-    const alCb = shadow.getElementById("al");
-    const blCb = shadow.getElementById("bl");
-    alCb.onchange = () => alCb.checked && (blCb.checked = !1);
-    blCb.onchange = () => blCb.checked && (alCb.checked = !1);
+    const cbAllow = shadow.getElementById("cb-allow");
+    const cbBlock = shadow.getElementById("cb-block");
+    cbAllow.onchange = () => cbAllow.checked && (cbBlock.checked = false);
+    cbBlock.onchange = () => cbBlock.checked && (cbAllow.checked = false);
 
-        shadow.getElementById("c").onclick = () => {
-            if (alCb.checked) {
-                chrome.storage.sync.get(["allowlist", "blacklist"], (data) => {
-                    let al = data.allowlist || [];
-                    let bl = data.blacklist || [];
-                    if (!al.includes(host)) {
-                        chrome.storage.sync.set({ allowlist: [...al, host], blacklist: bl.filter(i => i !== host) });
-                    }
-                });
-            }
-            container.remove();
-            if (source === 'location') {
-                // Navigation bị inject.js block → gửi NMT_DO_NAV để inject.js gọi origAssign
-                const token = document.documentElement.getAttribute('data-nmt-nav-token');
-                window.postMessage({ action: 'NMT_DO_NAV', url, token }, '*');
-            } else {
-                window.open(url, name, specs);
-            }
-        };
-
-    shadow.getElementById("b").onclick = () => {
-        if (blCb.checked) {
-            chrome.storage.sync.get(["allowlist", "blacklist"], (data) => {
-                let al = data.allowlist || [];
-                let bl = data.blacklist || [];
-                if (!bl.includes(host)) {
-                    chrome.storage.sync.set({ blacklist: [...bl, host], allowlist: al.filter(i => i !== host) });
-                }
-            });
+    // Open once — do not remember action, just open this URL
+    shadow.getElementById("btn-open").onclick = () => {
+        if (cbAllow.checked) saveSource(source, 'allow');
+        container.remove();
+        if (isNav) {
+            const token = document.documentElement.getAttribute('data-nmt-nav-token');
+            window.postMessage({ action: 'NMT_DO_NAV', url, token }, '*');
+        } else {
+            window.open(url, name, specs);
         }
+    };
+
+    // Block — if "always block" is checked, save SOURCE to popupBlock
+    shadow.getElementById("btn-block").onclick = () => {
+        if (cbBlock.checked) saveSource(source, 'block');
         container.remove();
     };
 };
 
-const getHost = (url) => {
-    try {
-        const u = url.startsWith('http') ? url : 'http://' + url;
-        return new URL(u).hostname.toLowerCase();
-    } catch (e) { return "unknown"; }
+const saveSource = (source, action) => {
+    if (action === 'allow') {
+        chrome.storage.sync.get(["popupAllow", "popupBlock"], data => {
+            const pal = data.popupAllow || [];
+            const pbl = (data.popupBlock || []).filter(x => x !== source);
+            if (!pal.includes(source)) pal.push(source);
+            chrome.storage.sync.set({ popupAllow: pal, popupBlock: pbl });
+        });
+    } else {
+        chrome.storage.sync.get(["popupAllow", "popupBlock"], data => {
+            const pbl = data.popupBlock || [];
+            const pal = (data.popupAllow || []).filter(x => x !== source);
+            if (!pbl.includes(source)) pbl.push(source);
+            chrome.storage.sync.set({ popupBlock: pbl, popupAllow: pal });
+        });
+    }
 };
 
-const syncData = async () => {
-    const { al, bl } = await loadLists();
-    document.documentElement.setAttribute("data-nmt-al", JSON.stringify(al));
-    document.documentElement.setAttribute("data-nmt-bl", JSON.stringify(bl));
+const getHost = url => {
+    try { return new URL(url.startsWith('http') ? url : 'http://' + url).hostname.toLowerCase(); }
+    catch(e) { return 'unknown'; }
 };
-
-// Initial sync
-syncData();
 
 window.addEventListener("message", e => {
-    if (e.data?.action === 'NMT_ASK') {
-        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs, e.data.source);
-    }
-    if (e.data?.action === "NMT_IFRAME") {
-        showPopup(e.data.url, getHost(e.data.url), e.data.name, e.data.specs, e.data.source);
+    if (e.data?.action === 'NMT_ASK' || e.data?.action === 'NMT_IFRAME') {
+        const source = e.data.source || getHost(e.data.url);
+        if (source === 'unknown') return;
+        showPopup(e.data.url, source, e.data.name, e.data.specs, e.data.isNav || false);
     }
 });
-
-chrome.storage.onChanged.addListener(syncData);

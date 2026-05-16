@@ -1,65 +1,53 @@
 (function() {
     'use strict';
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
     const checkMatch = (host, list) => {
         if (!host || !list) return false;
-        return list.some(x => x.startsWith('*.') 
-            ? (host === x.slice(2) || host.endsWith('.' + x.slice(2))) 
+        return list.some(x => x.startsWith('*.')
+            ? (host === x.slice(2) || host.endsWith('.' + x.slice(2)))
             : host === x);
     };
 
-    const getAction = (url) => {
-        if (!url || url.startsWith('javascript:') || url.startsWith('mailto:') 
-            || url.startsWith('tel:') || url.startsWith('#')) {
-            return 'ALLOW';
-        }
-        const al = JSON.parse(document.documentElement.getAttribute("data-nmt-al") || "[]");
-        const bl = JSON.parse(document.documentElement.getAttribute("data-nmt-bl") || "[]");
+    // SOURCE-based: is the current page allowed to open popups?
+    // Used for window.open and location.* cross-origin (programmatic)
+    const getPopupAction = () => {
         const curHost = location.hostname.toLowerCase();
+        const pal = JSON.parse(document.documentElement.getAttribute('data-nmt-pal') || '[]');
+        const pbl = JSON.parse(document.documentElement.getAttribute('data-nmt-pbl') || '[]');
+        if (checkMatch(curHost, pal)) return 'ALLOW';
+        if (checkMatch(curHost, pbl)) return 'BLOCK';
+        return 'ASK';
+    };
 
-        if (checkMatch(curHost, al)) return 'ALLOW';
-
+    // DESTINATION-based: used for <a> click by user action
+    // Only block if destination is manually added to navBlock
+    const getNavAction = (url) => {
         try {
-            const target = new URL(url, location.href);
-            const tHost = target.hostname.toLowerCase();
-            if (checkMatch(tHost, bl)) return 'BLOCK';
-            if (checkMatch(tHost, al)) return 'ALLOW';
-            if (target.origin !== location.origin) return 'ASK';
-        } catch (e) {
-            if (url && !url.includes('://') && !url.startsWith('/')
-                && !url.startsWith('.') && !url.startsWith('#')) return 'ASK';
-        }
+            const dest = new URL(url, location.href);
+            const nbl = JSON.parse(document.documentElement.getAttribute('data-nmt-nbl') || '[]');
+            if (checkMatch(dest.hostname.toLowerCase(), nbl)) return 'BLOCK';
+        } catch(e) {}
         return 'ALLOW';
     };
 
-    const askPopup = (url, name, specs, source = 'open') =>
-        window.postMessage({ action: 'NMT_ASK', url, name, specs, source }, '*');
+    const askPopup = (url, name, specs) =>
+        window.postMessage({
+            action: 'NMT_ASK',
+            url,
+            name,
+            specs,
+            source: location.hostname   // SOURCE sent up to display popup correctly
+        }, '*');
 
-    // ── Override window.open ──────────────────────────────────────────────────
+    // ── window.open ─────────────────────────────────────────────────────────
     const originalOpen = window.open;
 
     const interceptedOpen = function(url, name, specs) {
         const targetUrl = url || 'about:blank';
-        const action = getAction(targetUrl);
-
-        if (action === 'ALLOW') {
-            try {
-                const target = new URL(targetUrl, location.href);
-                if (target.origin === location.origin) {
-                    const al = JSON.parse(document.documentElement.getAttribute("data-nmt-al") || "[]");
-                    if (!checkMatch(location.hostname.toLowerCase(), al)) {
-                        askPopup(targetUrl, name, specs, 'open');
-                        return null;
-                    }
-                }
-            } catch(e) {}
-            return originalOpen.call(window, url, name, specs);
-        }
+        const action = getPopupAction();         // decide based on SOURCE
         if (action === 'BLOCK') return null;
-
-        askPopup(targetUrl, name, specs, 'open');
-        return null;
+        if (action === 'ASK')   { askPopup(targetUrl, name, specs); return null; }
+        return originalOpen.call(window, url, name, specs);
     };
 
     try {
@@ -72,76 +60,70 @@
         window.open = interceptedOpen;
     }
 
-    // ── Intercept location navigation ─────────────────────────────────────────
-    // location.assign / location.replace / location.href đều là read-only property
-    // trên Location instance — không thể gán trực tiếp.
-    // Cách đúng: Object.defineProperty trên Location.prototype cho từng method/accessor.
-
+    // ── location.* cross-origin navigation (programmatic) ───────────────────
     let bypassNext = false;
 
-    const blockNav = (url, doNavigate) => {
-        const action = getAction(url);
+    const interceptNav = (url, doNavigate) => {
+        try {
+            const dest = new URL(url, location.href);
+            if (dest.origin === location.origin) { doNavigate(url); return; } // same-origin → cho qua
+        } catch(e) { doNavigate(url); return; }
+
+        const action = getPopupAction();         // also based on SOURCE
         if (action === 'ALLOW') { doNavigate(url); return; }
         if (action === 'BLOCK') return;
-        askPopup(url, '_self', '', 'location');
-        // không gọi doNavigate → navigation bị chặn
+        askPopup(url, '_self', '');
+        // do not call doNavigate → navigation is blocked, wait for user decision
     };
 
     const locProto = Location.prototype;
-
-    // Lưu native methods trước khi override
     const origAssign  = locProto.assign;
     const origReplace = locProto.replace;
 
-    // Override assign
     try {
         Object.defineProperty(locProto, 'assign', {
-            value: function(url) { blockNav(String(url), u => origAssign.call(this, u)); },
+            value: function(url) { interceptNav(String(url), u => origAssign.call(this, u)); },
             writable: true, configurable: true
         });
     } catch(_) {}
 
-    // Override replace
     try {
         Object.defineProperty(locProto, 'replace', {
-            value: function(url) { blockNav(String(url), u => origReplace.call(this, u)); },
+            value: function(url) { interceptNav(String(url), u => origReplace.call(this, u)); },
             writable: true, configurable: true
         });
     } catch(_) {}
 
-    // Override href setter
     try {
         const hrefDesc = Object.getOwnPropertyDescriptor(locProto, 'href');
         if (hrefDesc?.set) {
             const origSet = hrefDesc.set;
             Object.defineProperty(locProto, 'href', {
                 get: hrefDesc.get,
-                set(v) { blockNav(String(v), u => origSet.call(this, u)); },
+                set(v) { interceptNav(String(v), u => origSet.call(this, u)); },
                 configurable: true,
                 enumerable: hrefDesc.enumerable
             });
         }
     } catch(_) {}
 
-    // Navigation API — safety net: bắt mọi navigation còn sót
-    // (nếu browser không cho override Location.prototype)
     if (window.navigation) {
         window.navigation.addEventListener('navigate', e => {
             if (e.hashChange || e.downloadRequest) return;
             if (bypassNext) { bypassNext = false; return; }
-            const action = getAction(e.destination.url);
+            try {
+                const dest = new URL(e.destination.url);
+                if (dest.origin === location.origin) return;
+            } catch(_) { return; }
+            const action = getPopupAction();
             if (action === 'BLOCK') { e.preventDefault(); return; }
-            if (action === 'ASK') {
-                e.preventDefault();
-                askPopup(e.destination.url, '_self', '', 'location');
-            }
+            if (action === 'ASK')   { e.preventDefault(); askPopup(e.destination.url, '_self', ''); }
         });
     }
 
-    // Allow Once cho location navigation: gửi NMT_DO_NAV → bypass intercept 1 lần
+    // Allow Once for location navigation
     const navToken = Math.random().toString(36).slice(2);
     document.documentElement.setAttribute('data-nmt-nav-token', navToken);
-
     window.addEventListener('message', e => {
         if (e.data?.action === 'NMT_DO_NAV' && e.data.token === navToken) {
             bypassNext = true;
@@ -149,24 +131,45 @@
         }
     });
 
-    // ── Intercept <a> clicks ──────────────────────────────────────────────────
+    // <a> click: user-initiated
+    // DO NOT ask cross-origin — user initiated click means user wants to open.
+    // Only block if destination is in navBlock (manually added from popup UI).
     const handleLinkEvent = (e) => {
+        if (!e.isTrusted) return;
         const a = e.composedPath().find(el => el.tagName === 'A');
         if (!a || !a.href) return;
-        const action = getAction(a.href);
-        if (action === 'ASK') {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            if (e.type === 'click') askPopup(a.href, a.target || '_blank', '', 'open');
-        } else if (action === 'BLOCK') {
+        const action = getNavAction(a.href);
+        if (action === 'BLOCK') {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
         }
+        // ALLOW → do nothing, browser opens normally
     };
 
     document.addEventListener('mousedown', handleLinkEvent, true);
     document.addEventListener('click',     handleLinkEvent, true);
+
+    // ── HTMLElement.prototype.click() — programmatic click on <a> ──────────
+    const originalClick = HTMLElement.prototype.click;
+    HTMLElement.prototype.click = function() {
+        if (this.tagName === 'A' && this.href) {
+            try {
+                const dest = new URL(this.href, location.href);
+                if (dest.origin !== location.origin) {
+                    const t = (this.target || '').toLowerCase();
+                    const isNewTab = t === '_blank' || t === '_new'
+                        || (t !== '' && t !== '_self' && t !== '_top' && t !== '_parent');
+                    if (isNewTab) {
+                        // Programmatic click opening new tab cross-origin → treat as window.open
+                        const action = getPopupAction();
+                        if (action === 'BLOCK') return;
+                        if (action === 'ASK') { askPopup(this.href); return; }
+                    }
+                }
+            } catch(e) {}
+        }
+        return originalClick.call(this);
+    };
 
 })();

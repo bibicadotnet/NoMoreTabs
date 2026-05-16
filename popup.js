@@ -1,173 +1,159 @@
 "use strict";
 
-var staticAllowlist = [],
-    staticLoaded = !1;
+var staticAllowlist = [], staticLoaded = false;
 
 function loadStaticAllowlist() {
     if (staticLoaded) return Promise.resolve(staticAllowlist);
-    return fetch(chrome.runtime.getURL("allowlist.json")).then(function(n) {
-        return n.json()
-    }).then(function(n) {
-        return staticAllowlist = n, staticLoaded = !0, n
-    }).catch(function(n) {
-        return staticAllowlist = [], staticLoaded = !0, []
-    })
-}
-
-function isDomainInList(domain, list) {
-    return list.some(function(x) {
-        if (x.indexOf("*.") === 0) {
-            var b = x.slice(2);
-            return domain === b || domain.endsWith("." + b)
-        }
-        return domain === x
-    })
+    return fetch(chrome.runtime.getURL("allowlist.json"))
+        .then(r => r.json())
+        .then(list => { staticAllowlist = list; staticLoaded = true; return list; })
+        .catch(() => { staticLoaded = true; return []; });
 }
 
 function getHostname(t) {
-    try {
-        return new URL(t.includes("http") ? t : "http://".concat(t)).hostname
-    } catch (t) {
-        return null
-    }
+    try { return new URL(t.includes("http") ? t : "http://" + t).hostname; }
+    catch(e) { return null; }
 }
 
-function renderBlacklist() {
-    chrome.storage.sync.get(["blacklist"], function(t) {
-        var e = t.blacklist || [],
-            l = document.getElementById("blacklist"),
-            n = document.getElementById("empty-block-msg");
-        l.innerHTML = "", 0 === e.length ? n.style.display = "block" : (n.style.display = "none", e.forEach(function(t) {
-            var e = document.createElement("li");
-            e.innerHTML = '\n                    <span class="host">'.concat(t, '</span>\n                    <button class="delete-btn" title="Remove">&times;</button>\n                '), e.querySelector(".delete-btn").addEventListener("click", function() {
-                removeFromBlacklist(t)
-            }), l.appendChild(e)
-        }))
-    })
+function isDomainInList(domain, list) {
+    return list.some(x => x.startsWith('*.') 
+        ? (domain === x.slice(2) || domain.endsWith('.' + x.slice(2)))
+        : domain === x);
 }
 
-function renderAllowlist() {
-    chrome.storage.sync.get(["allowlist"], function(t) {
-        var e = t.allowlist || [],
-            l = document.getElementById("allowlist"),
-            n = document.getElementById("empty-allow-msg");
-        l.innerHTML = "", 0 === e.length ? n.style.display = "block" : (n.style.display = "none", e.forEach(function(t) {
-            var e = document.createElement("li");
-            e.innerHTML = '\n                    <span class="host">'.concat(t, '</span>\n                    <button class="delete-btn" title="Remove">&times;</button>\n                '), e.querySelector(".delete-btn").addEventListener("click", function() {
-                removeFromAllowlist(t)
-            }), l.appendChild(e)
-        }))
-    })
+// ── Render lists ──────────────────────────────────────────────────────────────
+
+function renderList(storageKey, listId, emptyId, onRemove) {
+    chrome.storage.sync.get([storageKey], data => {
+        const items = data[storageKey] || [];
+        const ul = document.getElementById(listId);
+        const em = document.getElementById(emptyId);
+        ul.innerHTML = '';
+        if (items.length === 0) { em.style.display = 'block'; return; }
+        em.style.display = 'none';
+        items.forEach(item => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="host">${item}</span><button class="delete-btn" title="Remove">&times;</button>`;
+            li.querySelector('.delete-btn').addEventListener('click', () => onRemove(item));
+            ul.appendChild(li);
+        });
+    });
 }
 
-function addToBlacklist(t) {
-    var e = getHostname(t);
-    if (!e) return;
-    loadStaticAllowlist().then(function(staticList) {
-        if (isDomainInList(e, staticList)) return; // Protection
-        chrome.storage.sync.get(["blacklist", "allowlist"], function(t) {
-            var l = t.blacklist || [],
-                n = (t.allowlist || []).filter(function(t) {
-                    return t !== e
-                });
-            l.includes(e) ? chrome.storage.sync.set({
-                allowlist: n
-            }, function() {
-                renderAllowlist()
-            }) : (l.push(e), chrome.storage.sync.set({
-                blacklist: l,
-                allowlist: n
-            }, function() {
-                renderBlacklist(), renderAllowlist(), document.getElementById("new-block-host").value = ""
-            }))
-        })
-    })
+function renderPopupBlocklist() {
+    renderList('popupBlock', 'popup-blocklist', 'empty-popup-block-msg', removeFromPopupBlock);
+}
+function renderPopupAllowlist() {
+    renderList('popupAllow', 'popup-allowlist', 'empty-popup-allow-msg', removeFromPopupAllow);
+}
+function renderNavBlocklist() {
+    renderList('navBlock', 'nav-blocklist', 'empty-nav-block-msg', removeFromNavBlock);
 }
 
-function addToAllowlist(t) {
-    var e = getHostname(t);
-    if (!e) return;
-    loadStaticAllowlist().then(function(staticList) {
-        if (isDomainInList(e, staticList)) return; // Protection
-        chrome.storage.sync.get(["blacklist", "allowlist"], function(t) {
-            var l = t.blacklist || [],
-                n = t.allowlist || [],
-                o = l.filter(function(t) {
-                    return t !== e
-                });
-            n.includes(e) ? chrome.storage.sync.set({
-                blacklist: o
-            }, function() {
-                renderBlacklist()
-            }) : (n.push(e), chrome.storage.sync.set({
-                allowlist: n,
-                blacklist: o
-            }, function() {
-                renderAllowlist(), renderBlacklist(), document.getElementById("new-allow-host").value = ""
-            }))
-        })
-    })
+// ── Add / Remove ──────────────────────────────────────────────────────────────
+
+function addToPopupBlock(input) {
+    const host = getHostname(input);
+    if (!host) return;
+    loadStaticAllowlist().then(staticList => {
+        if (isDomainInList(host, staticList)) return;
+        chrome.storage.sync.get(['popupBlock', 'popupAllow'], data => {
+            const pbl = data.popupBlock || [];
+            const pal = (data.popupAllow || []).filter(x => x !== host);
+            if (!pbl.includes(host)) pbl.push(host);
+            chrome.storage.sync.set({ popupBlock: pbl, popupAllow: pal }, () => {
+                renderPopupBlocklist(); renderPopupAllowlist();
+                document.getElementById('new-popup-block').value = '';
+            });
+        });
+    });
 }
 
-function removeFromBlacklist(t) {
-    chrome.storage.sync.get(["blacklist"], function(e) {
-        var l = e.blacklist || [];
-        l = l.filter(function(e) {
-            return e !== t
-        }), chrome.storage.sync.set({
-            blacklist: l
-        }, renderBlacklist)
-    })
+function addToPopupAllow(input) {
+    const host = getHostname(input);
+    if (!host) return;
+    loadStaticAllowlist().then(staticList => {
+        if (isDomainInList(host, staticList)) return;
+        chrome.storage.sync.get(['popupBlock', 'popupAllow'], data => {
+            const pal = data.popupAllow || [];
+            const pbl = (data.popupBlock || []).filter(x => x !== host);
+            if (!pal.includes(host)) pal.push(host);
+            chrome.storage.sync.set({ popupAllow: pal, popupBlock: pbl }, () => {
+                renderPopupAllowlist(); renderPopupBlocklist();
+                document.getElementById('new-popup-allow').value = '';
+            });
+        });
+    });
 }
 
-function removeFromAllowlist(t) {
-    chrome.storage.sync.get(["allowlist"], function(e) {
-        var l = e.allowlist || [];
-        l = l.filter(function(e) {
-            return e !== t
-        }), chrome.storage.sync.set({
-            allowlist: l
-        }, renderAllowlist)
-    })
+function addToNavBlock(input) {
+    const host = getHostname(input);
+    if (!host) return;
+    chrome.storage.sync.get(['navBlock'], data => {
+        const nbl = data.navBlock || [];
+        if (!nbl.includes(host)) nbl.push(host);
+        chrome.storage.sync.set({ navBlock: nbl }, () => {
+            renderNavBlocklist();
+            document.getElementById('new-nav-block').value = '';
+        });
+    });
 }
 
+function removeFromPopupBlock(host) {
+    chrome.storage.sync.get(['popupBlock'], data => {
+        chrome.storage.sync.set({ popupBlock: (data.popupBlock || []).filter(x => x !== host) }, renderPopupBlocklist);
+    });
+}
+function removeFromPopupAllow(host) {
+    chrome.storage.sync.get(['popupAllow'], data => {
+        chrome.storage.sync.set({ popupAllow: (data.popupAllow || []).filter(x => x !== host) }, renderPopupAllowlist);
+    });
+}
+function removeFromNavBlock(host) {
+    chrome.storage.sync.get(['navBlock'], data => {
+        chrome.storage.sync.set({ navBlock: (data.navBlock || []).filter(x => x !== host) }, renderNavBlocklist);
+    });
+}
+
+// ── Quick buttons for current tab ───────────────────────────────────────────
 function checkCurrentTab() {
-    chrome.tabs.query({
-        active: !0,
-        currentWindow: !0
-    }, function(t) {
-        if (t[0] && t[0].url) {
-            var e = getHostname(t[0].url);
-            if (e) {
-                loadStaticAllowlist().then(function(staticList) {
-                    var l = document.getElementById("block-current"),
-                        n = document.getElementById("allow-current");
-                    
-                    // If domain is in static allowlist, hide the quick buttons
-                    if (isDomainInList(e, staticList)) {
-                        l.style.display = "none";
-                        n.style.display = "none";
-                        return;
-                    }
-
-                    l.innerText = "Block ".concat(e), n.innerText = "Allow ".concat(e), l.style.display = "block", n.style.display = "block", l.onclick = function() {
-                        addToBlacklist(e)
-                    }, n.onclick = function() {
-                        addToAllowlist(e)
-                    }
-                })
-            }
-        }
-    })
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+        if (!tabs[0]?.url) return;
+        const host = getHostname(tabs[0].url);
+        if (!host) return;
+        loadStaticAllowlist().then(staticList => {
+            if (isDomainInList(host, staticList)) return;
+            const btnBlock = document.getElementById('quick-popup-block');
+            const btnAllow = document.getElementById('quick-popup-allow');
+            btnBlock.textContent = `Block popups from ${host}`;
+            btnAllow.textContent = `Allow popups from ${host}`;
+            btnBlock.style.display = 'block';
+            btnAllow.style.display = 'block';
+            btnBlock.onclick = () => addToPopupBlock(host);
+            btnAllow.onclick = () => addToPopupAllow(host);
+        });
+    });
 }
-document.addEventListener("DOMContentLoaded", function() {
-    renderBlacklist(), renderAllowlist(), checkCurrentTab(), document.getElementById("add-block-btn").addEventListener("click", function() {
-        addToBlacklist(document.getElementById("new-block-host").value)
-    }), document.getElementById("new-block-host").addEventListener("keypress", function(t) {
-        "Enter" === t.key && addToBlacklist(t.target.value)
-    }), document.getElementById("add-allow-btn").addEventListener("click", function() {
-        addToAllowlist(document.getElementById("new-allow-host").value)
-    }), document.getElementById("new-allow-host").addEventListener("keypress", function(t) {
-        "Enter" === t.key && addToAllowlist(t.target.value)
-    })
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    renderPopupBlocklist();
+    renderPopupAllowlist();
+    renderNavBlocklist();
+    checkCurrentTab();
+
+    document.getElementById('add-popup-block-btn').onclick = () =>
+        addToPopupBlock(document.getElementById('new-popup-block').value);
+    document.getElementById('new-popup-block').onkeypress = e =>
+        e.key === 'Enter' && addToPopupBlock(e.target.value);
+
+    document.getElementById('add-popup-allow-btn').onclick = () =>
+        addToPopupAllow(document.getElementById('new-popup-allow').value);
+    document.getElementById('new-popup-allow').onkeypress = e =>
+        e.key === 'Enter' && addToPopupAllow(e.target.value);
+
+    document.getElementById('add-nav-block-btn').onclick = () =>
+        addToNavBlock(document.getElementById('new-nav-block').value);
+    document.getElementById('new-nav-block').onkeypress = e =>
+        e.key === 'Enter' && addToNavBlock(e.target.value);
 });
