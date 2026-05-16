@@ -30,14 +30,26 @@
         return 'ALLOW';
     };
 
-    const askPopup = (url, name, specs) =>
+    // Flag đồng bộ — set NGAY KHI chặn popup, trước khi postMessage được xử lý.
+    // Không dùng DOM check vì postMessage là async: nmt-container chưa kịp add
+    // vào DOM thì location navigation đã chạy xong rồi.
+    let popupPending = false;
+
+    const askPopup = (url, name, specs) => {
+        popupPending = true;   // đồng bộ, ngay lập tức
         window.postMessage({
             action: 'NMT_ASK',
             url,
             name,
             specs,
-            source: location.hostname   // SOURCE sent up to display popup correctly
+            source: location.hostname
         }, '*');
+    };
+
+    // Khi user đóng dialog (Block hoặc Allow Once) → content.js gửi NMT_DIALOG_CLOSED
+    window.addEventListener('message', e => {
+        if (e.data?.action === 'NMT_DIALOG_CLOSED') popupPending = false;
+    });
 
     // ── window.open ─────────────────────────────────────────────────────────
     const originalOpen = window.open;
@@ -66,14 +78,20 @@
     const interceptNav = (url, doNavigate) => {
         try {
             const dest = new URL(url, location.href);
-            if (dest.origin === location.origin) { doNavigate(url); return; } // same-origin → cho qua
+            if (dest.origin === location.origin) {
+                // Same-origin: cho qua — TRỪ KHI đang chờ user quyết định về popup.
+                // popupPending được set đồng bộ trong askPopup() → đảm bảo block
+                // kịp trước khi navigation chạy (không như DOM check bị race condition).
+                if (!popupPending) doNavigate(url);
+                return;
+            }
         } catch(e) { doNavigate(url); return; }
 
-        const action = getPopupAction();         // also based on SOURCE
+        const action = getPopupAction();
         if (action === 'ALLOW') { doNavigate(url); return; }
         if (action === 'BLOCK') return;
         askPopup(url, '_self', '');
-        // do not call doNavigate → navigation is blocked, wait for user decision
+        // không gọi doNavigate → navigation bị chặn, chờ user quyết định
     };
 
     const locProto = Location.prototype;
@@ -113,7 +131,10 @@
             if (bypassNext) { bypassNext = false; return; }
             try {
                 const dest = new URL(e.destination.url);
-                if (dest.origin === location.origin) return;
+                if (dest.origin === location.origin) {
+                    if (popupPending) e.preventDefault();
+                    return;
+                }
             } catch(_) { return; }
             const action = getPopupAction();
             if (action === 'BLOCK') { e.preventDefault(); return; }

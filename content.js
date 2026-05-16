@@ -98,10 +98,15 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
     cbAllow.onchange = () => cbAllow.checked && (cbBlock.checked = false);
     cbBlock.onchange = () => cbBlock.checked && (cbAllow.checked = false);
 
+    const closeDialog = () => {
+        container.remove();
+        window.postMessage({ action: 'NMT_DIALOG_CLOSED' }, '*');
+    };
+
     // Open once — do not remember action, just open this URL
     shadow.getElementById("btn-open").onclick = () => {
         if (cbAllow.checked) saveSource(source, 'allow');
-        container.remove();
+        closeDialog();
         if (isNav) {
             const token = document.documentElement.getAttribute('data-nmt-nav-token');
             window.postMessage({ action: 'NMT_DO_NAV', url, token }, '*');
@@ -113,7 +118,7 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
     // Block — if "always block" is checked, save SOURCE to popupBlock
     shadow.getElementById("btn-block").onclick = () => {
         if (cbBlock.checked) saveSource(source, 'block');
-        container.remove();
+        closeDialog();
     };
 };
 
