@@ -8,14 +8,25 @@
             : host === x);
     };
 
-    // SOURCE-based: is the current page allowed to open popups?
-    // Used for window.open and location.* cross-origin (programmatic)
+    // Compare allowlist/blocklist with the TOP-LEVEL hostname (address bar), not the frame's hostname.
+    // Example: *.tiktok.com in allowlist → permitted when the USER is visiting tiktok.com,
+    // but NOT permitted when vt.tiktok.com is just an embedded iframe on vozer.vn.
     const getPopupAction = () => {
-        const curHost = location.hostname.toLowerCase();
         const pal = JSON.parse(document.documentElement.getAttribute('data-nmt-pal') || '[]');
         const pbl = JSON.parse(document.documentElement.getAttribute('data-nmt-pbl') || '[]');
-        if (checkMatch(curHost, pal)) return 'ALLOW';
-        if (checkMatch(curHost, pbl)) return 'BLOCK';
+
+        let topHost;
+        try {
+            // If in a cross-origin iframe, this line throws a SecurityError
+            topHost = new URL(window.top.location.href).hostname.toLowerCase();
+        } catch(e) {
+            // Cross-origin iframe: cannot determine top domain → default to ASK
+            // (prevents whitelisted domains like tiktok.com from being exploited when embedded on other sites)
+            return 'ASK';
+        }
+
+        if (checkMatch(topHost, pal)) return 'ALLOW';
+        if (checkMatch(topHost, pbl)) return 'BLOCK';
         return 'ASK';
     };
 
