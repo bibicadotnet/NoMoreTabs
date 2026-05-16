@@ -1,6 +1,6 @@
 # NoMoreTabs
 
-![PSWasTJO](https://img.bibica.net/PSWasTJO.png)
+![srvMVjnP](https://img.bibica.net/srvMVjnP.png)
 
 Browser extension to handle unwanted popups and tabs.
 
