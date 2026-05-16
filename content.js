@@ -12,7 +12,7 @@ const loadLists = async () => {
     return {
         pal: [...new Set([...staticList, ...(data.popupAllow || [])])],
         pbl: data.popupBlock || [],
-        nbl: data.navBlock   || []
+        nbl: data.navBlock || []
     };
 };
 
@@ -75,7 +75,7 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
                     <b>${source}</b> is trying to automatically open a ${isNav ? 'new page' : 'new tab'}:
                 </p>
                 <div class="dst-label">Destination URL</div>
-                <div class="dst">${url}</div>
+                <div class="dst">${url.length > 150 ? url.substring(0, 150) + '...' : url}</div>
                 <div class="ch-grp">
                     <label class="ch">
                         <input type="checkbox" id="cb-allow">
@@ -142,7 +142,7 @@ const saveSource = (source, action) => {
 
 const getHost = url => {
     try { return new URL(url.startsWith('http') ? url : 'http://' + url).hostname.toLowerCase(); }
-    catch(e) { return 'unknown'; }
+    catch (e) { return 'unknown'; }
 };
 
 window.addEventListener("message", e => {
