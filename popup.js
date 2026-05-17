@@ -1,6 +1,14 @@
 "use strict";
 
 var staticAllowlist = [], staticLoaded = false;
+var toastTimer = 0;
+function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
 
 function loadStaticAllowlist() {
     if (staticLoaded) return Promise.resolve(staticAllowlist);
@@ -11,17 +19,32 @@ function loadStaticAllowlist() {
 }
 
 function getHostname(t) {
-    try { return new URL(t.includes("http") ? t : "http://" + t).hostname; }
-    catch(e) { return null; }
+    try {
+        if (!t) return null;
+        t = t.trim();
+        if (t.startsWith('*.')) {
+            const base = new URL('http://' + t.slice(2)).hostname;
+            return '*.' + base;
+        }
+        return new URL(t.includes("http") ? t : "http://" + t).hostname;
+    } catch(e) { return null; }
 }
 
 function isDomainInList(domain, list) {
-    return list.some(x => x.startsWith('*.') 
-        ? (domain === x.slice(2) || domain.endsWith('.' + x.slice(2)))
-        : domain === x);
+    return list.some(x => {
+        if (x.startsWith('*.')) {
+            const base = x.slice(2);
+            return domain === x || domain === base || domain.endsWith('.' + base);
+        }
+        return domain === x;
+    });
 }
 
-// ── Render lists ──────────────────────────────────────────────────────────────
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
 
 function renderList(storageKey, listId, emptyId, onRemove) {
     chrome.storage.sync.get([storageKey], data => {
@@ -33,8 +56,16 @@ function renderList(storageKey, listId, emptyId, onRemove) {
         em.style.display = 'none';
         items.forEach(item => {
             const li = document.createElement('li');
-            li.innerHTML = `<span class="host">${item}</span><button class="delete-btn" title="Remove">&times;</button>`;
-            li.querySelector('.delete-btn').addEventListener('click', () => onRemove(item));
+            const span = document.createElement('span');
+            span.className = 'host';
+            span.textContent = item;
+            const btn = document.createElement('button');
+            btn.className = 'delete-btn';
+            btn.title = 'Remove';
+            btn.textContent = '\u00d7';
+            btn.addEventListener('click', () => onRemove(item));
+            li.appendChild(span);
+            li.appendChild(btn);
             ul.appendChild(li);
         });
     });
@@ -50,53 +81,46 @@ function renderNavBlocklist() {
     renderList('navBlock', 'nav-blocklist', 'empty-nav-block-msg', removeFromNavBlock);
 }
 
-// ── Add / Remove ──────────────────────────────────────────────────────────────
+function addToList(input, targetKey, otherKeys) {
+    const host = getHostname(input);
+    if (!host) return;
+    loadStaticAllowlist().then(staticList => {
+        if (isDomainInList(host, staticList)) {
+            showToast(host + ' is in built-in allowlist');
+            return;
+        }
+        const allKeys = [targetKey, ...otherKeys];
+        chrome.storage.sync.get(allKeys, data => {
+            const target = data[targetKey] || [];
+            if (target.includes(host)) return;
+            target.push(host);
+            const update = { [targetKey]: target };
+            otherKeys.forEach(k => {
+                update[k] = (data[k] || []).filter(x => x !== host);
+            });
+            chrome.storage.sync.set(update, () => {
+                renderPopupBlocklist(); renderPopupAllowlist(); renderNavBlocklist();
+                const inputMap = {
+                    popupBlock: 'new-popup-block',
+                    popupAllow: 'new-popup-allow',
+                    navBlock: 'new-nav-block'
+                };
+                if (inputMap[targetKey]) {
+                    document.getElementById(inputMap[targetKey]).value = '';
+                }
+            });
+        });
+    });
+}
 
 function addToPopupBlock(input) {
-    const host = getHostname(input);
-    if (!host) return;
-    loadStaticAllowlist().then(staticList => {
-        if (isDomainInList(host, staticList)) return;
-        chrome.storage.sync.get(['popupBlock', 'popupAllow'], data => {
-            const pbl = data.popupBlock || [];
-            const pal = (data.popupAllow || []).filter(x => x !== host);
-            if (!pbl.includes(host)) pbl.push(host);
-            chrome.storage.sync.set({ popupBlock: pbl, popupAllow: pal }, () => {
-                renderPopupBlocklist(); renderPopupAllowlist();
-                document.getElementById('new-popup-block').value = '';
-            });
-        });
-    });
+    addToList(input, 'popupBlock', ['popupAllow', 'navBlock']);
 }
-
 function addToPopupAllow(input) {
-    const host = getHostname(input);
-    if (!host) return;
-    loadStaticAllowlist().then(staticList => {
-        if (isDomainInList(host, staticList)) return;
-        chrome.storage.sync.get(['popupBlock', 'popupAllow'], data => {
-            const pal = data.popupAllow || [];
-            const pbl = (data.popupBlock || []).filter(x => x !== host);
-            if (!pal.includes(host)) pal.push(host);
-            chrome.storage.sync.set({ popupAllow: pal, popupBlock: pbl }, () => {
-                renderPopupAllowlist(); renderPopupBlocklist();
-                document.getElementById('new-popup-allow').value = '';
-            });
-        });
-    });
+    addToList(input, 'popupAllow', ['popupBlock', 'navBlock']);
 }
-
 function addToNavBlock(input) {
-    const host = getHostname(input);
-    if (!host) return;
-    chrome.storage.sync.get(['navBlock'], data => {
-        const nbl = data.navBlock || [];
-        if (!nbl.includes(host)) nbl.push(host);
-        chrome.storage.sync.set({ navBlock: nbl }, () => {
-            renderNavBlocklist();
-            document.getElementById('new-nav-block').value = '';
-        });
-    });
+    addToList(input, 'navBlock', ['popupBlock', 'popupAllow']);
 }
 
 function removeFromPopupBlock(host) {
@@ -115,7 +139,6 @@ function removeFromNavBlock(host) {
     });
 }
 
-// ── Quick buttons for current tab ───────────────────────────────────────────
 function checkCurrentTab() {
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
         if (!tabs[0]?.url) return;
@@ -135,7 +158,6 @@ function checkCurrentTab() {
     });
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     renderPopupBlocklist();
     renderPopupAllowlist();
@@ -144,16 +166,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('add-popup-block-btn').onclick = () =>
         addToPopupBlock(document.getElementById('new-popup-block').value);
-    document.getElementById('new-popup-block').onkeypress = e =>
-        e.key === 'Enter' && addToPopupBlock(e.target.value);
+    document.getElementById('new-popup-block').onkeypress = e => {
+        if (e.key === 'Enter') addToPopupBlock(e.target.value);
+    };
 
     document.getElementById('add-popup-allow-btn').onclick = () =>
         addToPopupAllow(document.getElementById('new-popup-allow').value);
-    document.getElementById('new-popup-allow').onkeypress = e =>
-        e.key === 'Enter' && addToPopupAllow(e.target.value);
+    document.getElementById('new-popup-allow').onkeypress = e => {
+        if (e.key === 'Enter') addToPopupAllow(e.target.value);
+    };
 
     document.getElementById('add-nav-block-btn').onclick = () =>
         addToNavBlock(document.getElementById('new-nav-block').value);
-    document.getElementById('new-nav-block').onkeypress = e =>
-        e.key === 'Enter' && addToNavBlock(e.target.value);
+    document.getElementById('new-nav-block').onkeypress = e => {
+        if (e.key === 'Enter') addToNavBlock(e.target.value);
+    };
 });

@@ -1,90 +1,254 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 340px; background: #f8fafc; color: #1e293b; font-size: 13px; }
-  
-  .header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 12px; background: #1e293b; color: #fff; }
-  .header img { width: 20px; height: 20px; }
-  .header h1 { font-size: 14px; font-weight: 700; }
-  
-  .quick { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px; }
-  .quick button { display: none; padding: 7px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; text-align: left; }
-  #quick-popup-block { background: #fee2e2; color: #b91c1c; }
-  #quick-popup-allow { background: #dcfce7; color: #15803d; }
-  .quick button:hover { filter: brightness(0.95); }
-  
-  .section { padding: 14px 16px 10px; border-bottom: 1px solid #e2e8f0; }
-  .section:last-child { border-bottom: none; }
-  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #64748b; margin-bottom: 10px; }
-  
-  .add-row { display: flex; gap: 6px; margin-bottom: 8px; }
-  .add-row input { flex: 1; padding: 6px 9px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; outline: none; background: #fff; }
-  .add-row input:focus { border-color: #94a3b8; }
-  .add-row button { padding: 6px 10px; border: none; border-radius: 6px; background: #1e293b; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
-  .add-row button:hover { background: #0f172a; }
-  
-  ul { list-style: none; max-height: 110px; overflow-y: auto; }
-  ul li { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f1f5f9; }
-  ul li:last-child { border-bottom: none; }
-  .host { font-size: 12px; color: #334155; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .delete-btn { background: none; border: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
-  .delete-btn:hover { color: #ef4444; }
-  .empty-msg { font-size: 12px; color: #94a3b8; padding: 4px 0; }
-  
-  .note { font-size: 11px; color: #94a3b8; margin-top: 6px; line-height: 1.4; }
-</style>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      width: 340px;
+      background: #f8fafc;
+      color: #1e293b;
+      font-size: 13px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px 12px;
+      background: #1e293b;
+      color: #fff;
+    }
+
+    .header img {
+      width: 20px;
+      height: 20px;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .quick {
+      padding: 12px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .quick button {
+      display: none;
+      padding: 7px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    #quick-popup-block {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    #quick-popup-allow {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    .quick button:hover {
+      filter: brightness(0.95);
+    }
+
+    .section {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .section:last-child {
+      border-bottom: none;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+
+    .add-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .add-row input {
+      flex: 1;
+      padding: 6px 9px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      background: #fff;
+    }
+
+    .add-row input:focus {
+      border-color: #94a3b8;
+    }
+
+    .add-row button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .add-row button:hover {
+      background: #0f172a;
+    }
+
+    ul {
+      list-style: none;
+      max-height: 110px;
+      overflow-y: auto;
+    }
+
+    ul li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    ul li:last-child {
+      border-bottom: none;
+    }
+
+    .host {
+      font-size: 12px;
+      color: #334155;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 4px;
+      flex-shrink: 0;
+    }
+
+    .delete-btn:hover {
+      color: #ef4444;
+    }
+
+    .empty-msg {
+      font-size: 12px;
+      color: #94a3b8;
+      padding: 4px 0;
+    }
+
+    .note {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: #fff;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 0.25s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 9;
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+  </style>
 </head>
+
 <body>
 
-<div class="header">
-  <img src="app_icon_128.png">
-  <h1>NoMoreTabs</h1>
-</div>
-
-<div class="quick">
-  <button id="quick-popup-block"></button>
-  <button id="quick-popup-allow"></button>
-</div>
-
-<!-- Block popups by SOURCE -->
-<div class="section">
-  <div class="section-title">🚫 Block popups from domain</div>
-  <p class="note" style="margin-bottom:8px">Which domains are not allowed to open new tabs</p>
-  <div class="add-row">
-    <input id="new-popup-block" placeholder="example.com" type="text">
-    <button id="add-popup-block-btn">+</button>
+  <div class="header">
+    <img src="app_icon_128.png">
+    <h1>NoMoreTabs</h1>
   </div>
-  <ul id="popup-blocklist"></ul>
-  <p id="empty-popup-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
-</div>
 
-<!-- Allow popups by SOURCE -->
-<div class="section">
-  <div class="section-title">✅ Allow popups from domain</div>
-  <p class="note" style="margin-bottom:8px">Domains allowed to freely open new tabs</p>
-  <div class="add-row">
-    <input id="new-popup-allow" placeholder="example.com" type="text">
-    <button id="add-popup-allow-btn">+</button>
+  <div class="quick">
+    <button id="quick-popup-block"></button>
+    <button id="quick-popup-allow"></button>
   </div>
-  <ul id="popup-allowlist"></ul>
-  <p id="empty-popup-allow-msg" class="empty-msg" style="display:none">No domains added yet</p>
-</div>
 
-<!-- Block navigation by DESTINATION -->
-<div class="section">
-  <div class="section-title">🔗 Block navigation to domain</div>
-  <p class="note" style="margin-bottom:8px">Block clicks to these domains (add manually)</p>
-  <div class="add-row">
-    <input id="new-nav-block" placeholder="adsite.com" type="text">
-    <button id="add-nav-block-btn">+</button>
+  <!-- Block popups by SOURCE -->
+  <div class="section">
+    <div class="section-title">🚫 Block popups from domain</div>
+    <p class="note" style="margin-bottom:8px">Which domains are not allowed to open new tabs</p>
+    <div class="add-row">
+      <input id="new-popup-block" placeholder="example.com or *.example.com" type="text">
+      <button id="add-popup-block-btn">+</button>
+    </div>
+    <ul id="popup-blocklist"></ul>
+    <p id="empty-popup-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
   </div>
-  <ul id="nav-blocklist"></ul>
-  <p id="empty-nav-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
-</div>
 
-<script src="popup.js"></script>
+  <!-- Allow popups by SOURCE -->
+  <div class="section">
+    <div class="section-title">✅ Allow popups from domain</div>
+    <p class="note" style="margin-bottom:8px">Domains allowed to freely open new tabs</p>
+    <div class="add-row">
+      <input id="new-popup-allow" placeholder="example.com or *.example.com" type="text">
+      <button id="add-popup-allow-btn">+</button>
+    </div>
+    <ul id="popup-allowlist"></ul>
+    <p id="empty-popup-allow-msg" class="empty-msg" style="display:none">No domains added yet</p>
+  </div>
+
+  <!-- Block navigation by DESTINATION -->
+  <div class="section">
+    <div class="section-title">🔗 Block navigation to domain</div>
+    <p class="note" style="margin-bottom:8px">Block clicks to these domains (add manually)</p>
+    <div class="add-row">
+      <input id="new-nav-block" placeholder="adsite.com or *.adsite.com" type="text">
+      <button id="add-nav-block-btn">+</button>
+    </div>
+    <ul id="nav-blocklist"></ul>
+    <p id="empty-nav-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
+  </div>
+
+  <div id="toast"></div>
+  <script src="popup.js"></script>
 </body>
+
 </html>

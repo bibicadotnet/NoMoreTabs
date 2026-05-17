@@ -1,10 +1,5 @@
 "use strict";
 
-// Storage keys:
-//   popupAllow  — SOURCE domains allowed to open tabs (whitelist)
-//   popupBlock  — SOURCE domains blocked from opening tabs completely
-//   navBlock    — DESTINATION domains blocked from navigation (manually added)
-
 const loadLists = async () => {
     const staticList = await fetch(chrome.runtime.getURL("allowlist.json"))
         .then(r => r.json()).catch(() => []);
@@ -26,8 +21,8 @@ const syncData = async () => {
 syncData();
 chrome.storage.onChanged.addListener(syncData);
 
-// ── Popup UI ──────────────────────────────────────────────────────────────────
 const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
+    const destHost = getHost(url);
     if (window !== window.top) {
         window.top.postMessage({ action: "NMT_IFRAME", url, source, name, specs, isNav }, "*");
         return;
@@ -85,6 +80,10 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
                         <input type="checkbox" id="cb-block">
                         Always block <b>${source}</b> from opening new tabs
                     </label>
+                    <label class="ch" id="cb-dest-row" style="display:none">
+                        <input type="checkbox" id="cb-dest">
+                        Block all network requests to <b id="dest-host-label"></b>
+                    </label>
                 </div>
                 <div class="btns">
                     <button class="btn btn-allow" id="btn-open">Open once</button>
@@ -95,6 +94,15 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
 
     const cbAllow = shadow.getElementById("cb-allow");
     const cbBlock = shadow.getElementById("cb-block");
+    const cbDest  = shadow.getElementById("cb-dest");
+    shadow.getElementById("dest-host-label").textContent = destHost;
+    if (destHost && destHost !== source) {
+        const pal = JSON.parse(document.documentElement.getAttribute('data-nmt-pal') || '[]');
+        const nbl = JSON.parse(document.documentElement.getAttribute('data-nmt-nbl') || '[]');
+        if (!checkMatch(destHost, pal) && !checkMatch(destHost, nbl)) {
+            shadow.getElementById("cb-dest-row").style.display = "";
+        }
+    }
     cbAllow.onchange = () => cbAllow.checked && (cbBlock.checked = false);
     cbBlock.onchange = () => cbBlock.checked && (cbAllow.checked = false);
 
@@ -103,7 +111,6 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
         window.postMessage({ action: 'NMT_DIALOG_CLOSED' }, '*');
     };
 
-    // Open once — do not remember action, just open this URL
     shadow.getElementById("btn-open").onclick = () => {
         if (cbAllow.checked) saveSource(source, 'allow');
         closeDialog();
@@ -115,9 +122,9 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
         }
     };
 
-    // Block — if "always block" is checked, save SOURCE to popupBlock
     shadow.getElementById("btn-block").onclick = () => {
         if (cbBlock.checked) saveSource(source, 'block');
+        if (cbDest.checked)  saveDestBlock(destHost);
         closeDialog();
     };
 };
@@ -140,9 +147,26 @@ const saveSource = (source, action) => {
     }
 };
 
+const saveDestBlock = (host) => {
+    chrome.storage.sync.get(['navBlock'], data => {
+        const nbl = data.navBlock || [];
+        if (!nbl.includes(host)) {
+            nbl.push(host);
+            chrome.storage.sync.set({ navBlock: nbl });
+        }
+    });
+};
+
 const getHost = url => {
     try { return new URL(url.startsWith('http') ? url : 'http://' + url).hostname.toLowerCase(); }
     catch (e) { return 'unknown'; }
+};
+
+const checkMatch = (host, list) => {
+    if (!host || !list) return false;
+    return list.some(x => x.startsWith('*.')
+        ? (host === x.slice(2) || host.endsWith('.' + x.slice(2)))
+        : host === x);
 };
 
 window.addEventListener("message", e => {

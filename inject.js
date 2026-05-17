@@ -8,20 +8,14 @@
             : host === x);
     };
 
-    // Compare allowlist/blocklist with the TOP-LEVEL hostname (address bar), not the frame's hostname.
-    // Example: *.tiktok.com in allowlist → permitted when the USER is visiting tiktok.com,
-    // but NOT permitted when vt.tiktok.com is just an embedded iframe on vozer.vn.
     const getPopupAction = () => {
         const pal = JSON.parse(document.documentElement.getAttribute('data-nmt-pal') || '[]');
         const pbl = JSON.parse(document.documentElement.getAttribute('data-nmt-pbl') || '[]');
 
         let topHost;
         try {
-            // If in a cross-origin iframe, this line throws a SecurityError
             topHost = new URL(window.top.location.href).hostname.toLowerCase();
         } catch(e) {
-            // Cross-origin iframe: cannot determine top domain → default to ASK
-            // (prevents whitelisted domains like tiktok.com from being exploited when embedded on other sites)
             return 'ASK';
         }
 
@@ -30,8 +24,6 @@
         return 'ASK';
     };
 
-    // DESTINATION-based: used for <a> click by user action
-    // Only block if destination is manually added to navBlock
     const getNavAction = (url) => {
         try {
             const dest = new URL(url, location.href);
@@ -41,13 +33,10 @@
         return 'ALLOW';
     };
 
-    // Sync flag — set IMMEDIATELY when blocking a popup, before postMessage is handled.
-    // We don't use DOM check because postMessage is async: the location navigation
-    // might finish before nmt-container is added to the DOM.
     let popupPending = false;
 
     const askPopup = (url, name, specs) => {
-        popupPending = true;   // synchronous, immediate
+        popupPending = true;
         window.postMessage({
             action: 'NMT_ASK',
             url,
@@ -57,17 +46,15 @@
         }, '*');
     };
 
-    // When user closes dialog (Block or Allow Once) → content.js sends NMT_DIALOG_CLOSED
     window.addEventListener('message', e => {
         if (e.data?.action === 'NMT_DIALOG_CLOSED') popupPending = false;
     });
 
-    // ── window.open ─────────────────────────────────────────────────────────
     const originalOpen = window.open;
 
     const interceptedOpen = function(url, name, specs) {
         const targetUrl = url || 'about:blank';
-        const action = getPopupAction();         // decide based on SOURCE
+        const action = getPopupAction();
         if (action === 'BLOCK') return null;
         if (action === 'ASK')   { askPopup(targetUrl, name, specs); return null; }
         return originalOpen.call(window, url, name, specs);
@@ -83,16 +70,12 @@
         window.open = interceptedOpen;
     }
 
-    // ── location.* cross-origin navigation (programmatic) ───────────────────
     let bypassNext = false;
 
     const interceptNav = (url, doNavigate) => {
         try {
             const dest = new URL(url, location.href);
             if (dest.origin === location.origin) {
-                // Same-origin: permit — UNLESS waiting for user decision on a popup.
-                // popupPending is set synchronously in askPopup() → ensures blocking
-                // happens before navigation (unlike DOM checks which have race conditions).
                 if (!popupPending) doNavigate(url);
                 return;
             }
@@ -102,7 +85,6 @@
         if (action === 'ALLOW') { doNavigate(url); return; }
         if (action === 'BLOCK') return;
         askPopup(url, '_self', '');
-        // do not call doNavigate → navigation is blocked, wait for user decision
     };
 
     const locProto = Location.prototype;
@@ -153,7 +135,6 @@
         });
     }
 
-    // Allow Once for location navigation
     const navToken = Math.random().toString(36).slice(2);
     document.documentElement.setAttribute('data-nmt-nav-token', navToken);
     window.addEventListener('message', e => {
@@ -163,9 +144,6 @@
         }
     });
 
-    // <a> click: user-initiated
-    // DO NOT ask cross-origin — user initiated click means user wants to open.
-    // Only block if destination is in navBlock (manually added from popup UI).
     const handleLinkEvent = (e) => {
         if (!e.isTrusted) return;
         const a = e.composedPath().find(el => el.tagName === 'A');
@@ -176,13 +154,11 @@
             e.stopPropagation();
             e.stopImmediatePropagation();
         }
-        // ALLOW → do nothing, browser opens normally
     };
 
     document.addEventListener('mousedown', handleLinkEvent, true);
     document.addEventListener('click',     handleLinkEvent, true);
 
-    // ── HTMLElement.prototype.click() — programmatic click on <a> ──────────
     const originalClick = HTMLElement.prototype.click;
     HTMLElement.prototype.click = function() {
         if (this.tagName === 'A' && this.href) {
@@ -193,7 +169,6 @@
                     const isNewTab = t === '_blank' || t === '_new'
                         || (t !== '' && t !== '_self' && t !== '_top' && t !== '_parent');
                     if (isNewTab) {
-                        // Programmatic click opening new tab cross-origin → treat as window.open
                         const action = getPopupAction();
                         if (action === 'BLOCK') return;
                         if (action === 'ASK') { askPopup(this.href); return; }
