@@ -53,18 +53,18 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
             .ch { display:flex;align-items:center;gap:9px;font-size:13px;color:#334155;cursor:pointer;user-select:none; }
             .ch input { width:15px;height:15px;accent-color:#1e293b;cursor:pointer;flex-shrink:0; }
             .btns { display:flex;gap:10px;justify-content:flex-end; }
-            .btn { border:none;padding:9px 20px;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px;transition:background .15s; }
-            .btn-allow { background:#e2e8f0;color:#1e293b; }
-            .btn-allow:hover { background:#cbd5e1; }
-            .btn-block { background:#1e293b;color:#fff; }
-            .btn-block:hover { background:#0f172a; }
+            .btn { border:none;padding:9px 20px;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px;transition:all .15s; }
+            .btn-allow { background:#16a34a;color:#fff; }
+            .btn-allow:hover { background:#15803d; }
+            .btn-block { background:#dc2626;color:#fff; }
+            .btn-block:hover { background:#b91c1c; }
             @keyframes popIn { from{transform:scale(0.94);opacity:0}to{transform:scale(1);opacity:1} }
         </style>
         <div class="ov">
             <div class="cd">
                 <div class="hd">
                     <img src="${iconUrl}">
-                    <h3>Popup Blocked</h3>
+                    <h3>NoMoreTabs</h3>
                 </div>
                 <p class="src">
                     <b>${source}</b> is trying to automatically open a ${isNav ? 'new page' : 'new tab'}:
@@ -86,8 +86,8 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
                     </label>
                 </div>
                 <div class="btns">
-                    <button class="btn btn-allow" id="btn-open">Open once</button>
-                    <button class="btn btn-block" id="btn-block">Block</button>
+                    <button class="btn btn-allow" id="btn-open">Allow this time</button>
+                    <button class="btn btn-block" id="btn-block">Block this time</button>
                 </div>
             </div>
         </div>`;
@@ -103,16 +103,45 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
             shadow.getElementById("cb-dest-row").style.display = "";
         }
     }
-    cbAllow.onchange = () => cbAllow.checked && (cbBlock.checked = false);
-    cbBlock.onchange = () => cbBlock.checked && (cbAllow.checked = false);
+
+    const btnOpen  = shadow.getElementById("btn-open");
+    const btnBlock = shadow.getElementById("btn-block");
+
+    const updateButtons = () => {
+        const blocking = cbBlock.checked || cbDest.checked;
+        const allowing = cbAllow.checked;
+        btnOpen.disabled = blocking;
+        btnOpen.style.opacity = blocking ? '0.4' : '1';
+        btnOpen.style.cursor = blocking ? 'not-allowed' : 'pointer';
+        btnBlock.disabled = allowing;
+        btnBlock.style.opacity = allowing ? '0.4' : '1';
+        btnBlock.style.cursor = allowing ? 'not-allowed' : 'pointer';
+    };
+
+    cbAllow.onchange = () => {
+        if (cbAllow.checked) cbBlock.checked = false;
+        updateButtons();
+    };
+    cbBlock.onchange = () => {
+        if (cbBlock.checked) cbAllow.checked = false;
+        updateButtons();
+    };
+    cbDest.onchange = updateButtons;
 
     const closeDialog = () => {
         container.remove();
         window.postMessage({ action: 'NMT_DIALOG_CLOSED' }, '*');
     };
 
-    shadow.getElementById("btn-open").onclick = () => {
+    const saveChecked = () => {
         if (cbAllow.checked) saveSource(source, 'allow');
+        if (cbBlock.checked) saveSource(source, 'block');
+        if (cbDest.checked)  saveDestBlock(destHost);
+    };
+
+    btnOpen.onclick = () => {
+        if (btnOpen.disabled) return;
+        saveChecked();
         closeDialog();
         if (isNav) {
             const token = document.documentElement.getAttribute('data-nmt-nav-token');
@@ -122,15 +151,27 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
         }
     };
 
-    shadow.getElementById("btn-block").onclick = () => {
-        if (cbBlock.checked) saveSource(source, 'block');
-        if (cbDest.checked)  saveDestBlock(destHost);
+    btnBlock.onclick = () => {
+        if (btnBlock.disabled) return;
+        saveChecked();
         closeDialog();
+        if (cbDest.checked) setTimeout(() => location.reload(), 300);
     };
+};
+
+const updateAttr = (key, fn) => {
+    const list = JSON.parse(document.documentElement.getAttribute(key) || '[]');
+    const updated = fn(list);
+    if (updated) document.documentElement.setAttribute(key, JSON.stringify(updated));
 };
 
 const saveSource = (source, action) => {
     if (action === 'allow') {
+        updateAttr('data-nmt-pal', list => {
+            if (list.includes(source)) return null;
+            list.push(source); return list;
+        });
+        updateAttr('data-nmt-pbl', list => list.filter(x => x !== source));
         chrome.storage.sync.get(["popupAllow", "popupBlock"], data => {
             const pal = data.popupAllow || [];
             const pbl = (data.popupBlock || []).filter(x => x !== source);
@@ -138,6 +179,11 @@ const saveSource = (source, action) => {
             chrome.storage.sync.set({ popupAllow: pal, popupBlock: pbl });
         });
     } else {
+        updateAttr('data-nmt-pbl', list => {
+            if (list.includes(source)) return null;
+            list.push(source); return list;
+        });
+        updateAttr('data-nmt-pal', list => list.filter(x => x !== source));
         chrome.storage.sync.get(["popupAllow", "popupBlock"], data => {
             const pbl = data.popupBlock || [];
             const pal = (data.popupAllow || []).filter(x => x !== source);
@@ -148,6 +194,10 @@ const saveSource = (source, action) => {
 };
 
 const saveDestBlock = (host) => {
+    updateAttr('data-nmt-nbl', list => {
+        if (list.includes(host)) return null;
+        list.push(host); return list;
+    });
     chrome.storage.sync.get(['navBlock'], data => {
         const nbl = data.navBlock || [];
         if (!nbl.includes(host)) {

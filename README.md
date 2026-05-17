@@ -7,36 +7,35 @@
 Browser extension to handle unwanted popups and tabs.
 
 ## How it works
-When a website tries to open a new tab, window, or navigate you to another site, a confirmation dialog appears inside your current tab.
+When a website tries to open a new tab, window, or navigate you to another site, a dialog appears inside your current tab.
 
 ### Action buttons
-- **Open once** — Allow this specific request one time only. The tab or page opens, but no rule is saved.
-- **Block** — Stop the request and close the dialog. Nothing opens.
+- **Allow this time** (green) — Allow this specific request once. No rule is saved.
+- **Block this time** (red) — Block this specific request once. No rule is saved.
 
-### Optional checkboxes
-These appear inside the dialog. Each checkbox is tied to a specific button:
+### Checkboxes
+Checkboxes save rules for the future and are saved regardless of which button you click:
 
-**When clicking Open once:**
-- **Always allow [source domain] to open new tabs** — Adds the source domain to the allow list. All future attempts **from** this domain will be permitted automatically.
+- **Always allow [source] to open new tabs** — Future attempts from this domain will be allowed automatically.
+- **Always block [source] from opening new tabs** — Future attempts from this domain will be silently blocked.
+- **Block all network requests to [destination]** — All requests to this domain (scripts, images, frames, etc.) will be blocked at the network level. The page will reload automatically after saving. *(Only shown when destination differs from source.)*
 
-**When clicking Block:**
-- **Always block [source domain] from opening new tabs** — Adds the source domain to the block list. All future attempts **from** this domain will be silently blocked.
-- **Block all network requests to [destination domain]** — *(Only shown when the destination differs from the source and is not already listed.)* Adds the destination domain to the network block list. All requests **to** this domain (scripts, images, frames, etc.) will be blocked at the network level via `declarativeNetRequest`.
+Checking a block checkbox disables the **Allow this time** button. Checking the allow checkbox disables the **Block this time** button.
 
-### Extension popup settings
+### Extension popup
 Click the extension icon to manage lists manually:
 
-- **🚫 Block popups from domain** — Source domains that are **not allowed** to open new tabs. Supports `*.example.com` wildcards.
-- **✅ Allow popups from domain** — Source domains that are **allowed** to open new tabs freely.
-- **🔗 Block navigation to domain** — Destination domains blocked at the **network level** (all resource types).
+- **🚫 Block popups from domain** — Source domains not allowed to open new tabs.
+- **✅ Allow popups from domain** — Source domains allowed to open new tabs freely.
+- **🔗 Block navigation to domain** — Destination domains blocked at the network level (all resource types).
 
-Adding a domain to one list automatically removes it from the other two.
+Supports `*.example.com` wildcards. Adding a domain to one list removes it from the other two.
 
 ### Built-in allowlist
-`allowlist.json` contains a default list of trusted domains (Google, Facebook, banks, etc.) that are always permitted. These domains cannot be added to the block lists via the popup UI.
+`allowlist.json` contains trusted domains (Google, Facebook, banks, etc.) that are always permitted and cannot be added to block lists via the UI.
 
 ### Synchronization
-All list changes are synchronized across open tabs instantly via `chrome.storage.sync`.
+All changes sync across open tabs instantly via `chrome.storage.sync`.
 
 ## Installation
 1. Download and extract **[NoMoreTabs.zip](https://github.com/bibicadotnet/NoMoreTabs/releases/latest/download/NoMoreTabs.zip)**.
