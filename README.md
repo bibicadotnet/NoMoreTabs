@@ -14,10 +14,13 @@ When a website tries to open a new tab, window, or navigate you to another site,
 - **Block** — Stop the request and close the dialog. Nothing opens.
 
 ### Optional checkboxes
-These appear inside the dialog and take effect when you click **Open once** or **Block**:
+These appear inside the dialog. Each checkbox is tied to a specific button:
 
-- **Always allow [source domain] to open new tabs** — Adds the source domain to the allow list. All future popup and navigation attempts **from** this domain will be permitted automatically.
-- **Always block [source domain] from opening new tabs** — Adds the source domain to the block list. All future popup and navigation attempts **from** this domain will be silently blocked.
+**When clicking Open once:**
+- **Always allow [source domain] to open new tabs** — Adds the source domain to the allow list. All future attempts **from** this domain will be permitted automatically.
+
+**When clicking Block:**
+- **Always block [source domain] from opening new tabs** — Adds the source domain to the block list. All future attempts **from** this domain will be silently blocked.
 - **Block all network requests to [destination domain]** — *(Only shown when the destination differs from the source and is not already listed.)* Adds the destination domain to the network block list. All requests **to** this domain (scripts, images, frames, etc.) will be blocked at the network level via `declarativeNetRequest`.
 
 ### Extension popup settings

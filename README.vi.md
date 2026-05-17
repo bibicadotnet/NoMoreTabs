@@ -14,10 +14,13 @@ Khi một trang web cố mở tab mới, cửa sổ mới, hoặc điều hướ
 - **Block** — Dừng yêu cầu và đóng hộp thoại. Không có gì được mở.
 
 ### Tùy chọn checkbox
-Các checkbox xuất hiện bên trong hộp thoại và có hiệu lực khi bạn nhấn **Open once** hoặc **Block**:
+Các checkbox xuất hiện bên trong hộp thoại. Mỗi checkbox gắn với một nút cụ thể:
 
-- **Always allow [tên miền nguồn] to open new tabs** — Thêm tên miền nguồn vào danh sách cho phép. Tất cả các lần mở popup và điều hướng **từ** tên miền này trong tương lai sẽ được tự động cho phép.
-- **Always block [tên miền nguồn] from opening new tabs** — Thêm tên miền nguồn vào danh sách chặn. Tất cả các lần mở popup và điều hướng **từ** tên miền này trong tương lai sẽ bị chặn mà không cần hỏi.
+**Khi nhấn Open once:**
+- **Always allow [tên miền nguồn] to open new tabs** — Thêm tên miền nguồn vào danh sách cho phép. Tất cả các lần truy cập **từ** tên miền này trong tương lai sẽ được tự động cho phép.
+
+**Khi nhấn Block:**
+- **Always block [tên miền nguồn] from opening new tabs** — Thêm tên miền nguồn vào danh sách chặn. Tất cả các lần truy cập **từ** tên miền này trong tương lai sẽ bị chặn mà không cần hỏi.
 - **Block all network requests to [tên miền đích]** — *(Chỉ hiện khi tên miền đích khác tên miền nguồn và chưa nằm trong danh sách nào.)* Thêm tên miền đích vào danh sách chặn mạng. Tất cả các request **đến** tên miền này (script, ảnh, iframe, v.v.) sẽ bị chặn ở tầng mạng qua `declarativeNetRequest`.
 
 ### Cài đặt qua popup tiện ích
