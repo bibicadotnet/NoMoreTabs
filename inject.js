@@ -34,9 +34,28 @@
     };
 
     let popupPending = false;
+    const origPlay = HTMLMediaElement.prototype.play;
+
+    const freezePage = () => {
+        // Block all media play calls
+        HTMLMediaElement.prototype.play = function() { return Promise.resolve(); };
+        // Pause all currently playing media
+        document.querySelectorAll('video, audio').forEach(m => { if (!m.paused) m.pause(); });
+        // Freeze CSS animations
+        const style = document.createElement('style');
+        style.id = 'nmt-freeze';
+        style.textContent = '*, *::before, *::after { animation-play-state: paused !important; transition: none !important; }';
+        document.head?.appendChild(style);
+    };
+
+    const unfreezePage = () => {
+        HTMLMediaElement.prototype.play = origPlay;
+        document.getElementById('nmt-freeze')?.remove();
+    };
 
     const askPopup = (url, name, specs) => {
         popupPending = true;
+        freezePage();
         let resolved = url;
         try { resolved = new URL(url, location.href).href; } catch (_) { }
         window.postMessage({
@@ -49,7 +68,10 @@
     };
 
     window.addEventListener('message', e => {
-        if (e.data?.action === 'NMT_DIALOG_CLOSED') popupPending = false;
+        if (e.data?.action === 'NMT_DIALOG_CLOSED') {
+            popupPending = false;
+            unfreezePage();
+        }
     });
 
     const originalOpen = window.open;
