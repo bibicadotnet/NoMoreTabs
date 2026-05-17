@@ -45,7 +45,6 @@
    ],
    "permissions": [
       "storage",
-      "scripting",
       "declarativeNetRequest"
    ],
    "web_accessible_resources": [
