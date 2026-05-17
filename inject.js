@@ -37,9 +37,11 @@
 
     const askPopup = (url, name, specs) => {
         popupPending = true;
+        let resolved = url;
+        try { resolved = new URL(url, location.href).href; } catch (_) { }
         window.postMessage({
             action: 'NMT_ASK',
-            url,
+            url: resolved,
             name,
             specs,
             source: location.hostname
