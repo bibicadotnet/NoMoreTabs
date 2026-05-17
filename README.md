@@ -1,5 +1,7 @@
 # NoMoreTabs
 
+![srvMVjnP](https://img.bibica.net/srvMVjnP.png)
+
 Browser extension to handle unwanted popups and tabs.
 
 ## Instructions
@@ -21,10 +23,7 @@ You can manage your lists via the extension popup or by editing `allowlist.json`
 Decisions made via the checkboxes are synchronized across all open browser tabs instantly.
 
 ## Installation
-1. Download and extract the extension folder.
+1. Download and extract **[NoMoreTabs.zip](https://github.com/bibicadotnet/NoMoreTabs/releases/latest/download/NoMoreTabs.zip)**.
 2. Open `chrome://extensions/` in your browser.
 3. Enable **Developer mode**.
-4. Click **Load unpacked** and select the extension folder.
-
----
-*Version: 1.0*
+4. Click **Load unpacked** and select the extracted folder.
