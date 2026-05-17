@@ -148,11 +148,41 @@
         if (!e.isTrusted) return;
         const a = e.composedPath().find(el => el.tagName === 'A');
         if (!a || !a.href) return;
-        const action = getNavAction(a.href);
-        if (action === 'BLOCK') {
+
+        // Check destination blocklist
+        const navAction = getNavAction(a.href);
+        if (navAction === 'BLOCK') {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
+            return;
+        }
+
+        // Check if link opens a new tab
+        const t = (a.target || '').toLowerCase();
+        const isNewTab = t === '_blank' || t === '_new'
+            || (t !== '' && t !== '_self' && t !== '_top' && t !== '_parent');
+
+        if (isNewTab) {
+            try {
+                const dest = new URL(a.href, location.href);
+                if (dest.origin === location.origin) return;
+            } catch(_) { return; }
+
+            const action = getPopupAction();
+            if (action === 'BLOCK') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return;
+            }
+            if (action === 'ASK') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                askPopup(a.href, a.target || '_blank', '');
+                return;
+            }
         }
     };
 
