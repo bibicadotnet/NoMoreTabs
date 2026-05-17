@@ -14,13 +14,11 @@ When a website tries to open a new tab, window, or navigate you to another site,
 - **Block this time** (red) — Block this specific request once. No rule is saved.
 
 ### Checkboxes
-Checkboxes save rules for the future and are saved regardless of which button you click:
+Checkboxes save permanent rules. Checking a checkbox automatically disables the opposite button:
 
-- **Always allow [source] to open new tabs** — Future attempts from this domain will be allowed automatically.
-- **Always block [source] from opening new tabs** — Future attempts from this domain will be silently blocked.
-- **Block all network requests to [destination]** — All requests to this domain (scripts, images, frames, etc.) will be blocked at the network level. The page will reload automatically after saving. *(Only shown when destination differs from source.)*
-
-Checking a block checkbox disables the **Allow this time** button. Checking the allow checkbox disables the **Block this time** button.
+- **Always allow [source] to open new tabs** — Future attempts from this domain will be allowed automatically. Disables **Block this time**.
+- **Always block [source] from opening new tabs** — Future attempts from this domain will be silently blocked. Disables **Allow this time**.
+- **Block all network requests to [destination]** — All requests to this domain (scripts, images, frames, etc.) will be blocked at the network level. The page reloads automatically. Disables **Allow this time**. *(Only shown when destination differs from source.)*
 
 ### Extension popup
 Click the extension icon to manage lists manually:

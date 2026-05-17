@@ -14,13 +14,11 @@ Khi một trang web cố mở tab mới, cửa sổ mới, hoặc điều hướ
 - **Block this time** (đỏ) — Chặn yêu cầu này một lần. Không lưu quy tắc nào.
 
 ### Checkbox
-Checkbox lưu quy tắc cho tương lai, được lưu bất kể bạn nhấn nút nào:
+Checkbox lưu quy tắc vĩnh viễn. Khi chọn checkbox, nút ngược lại sẽ tự động bị tắt:
 
-- **Always allow [nguồn] to open new tabs** — Các lần truy cập từ tên miền này trong tương lai sẽ được tự động cho phép.
-- **Always block [nguồn] from opening new tabs** — Các lần truy cập từ tên miền này trong tương lai sẽ bị chặn mà không cần hỏi.
-- **Block all network requests to [đích]** — Tất cả request đến tên miền này (script, ảnh, iframe, v.v.) sẽ bị chặn ở tầng mạng. Trang sẽ tự động tải lại sau khi lưu. *(Chỉ hiện khi tên miền đích khác tên miền nguồn.)*
-
-Khi chọn checkbox chặn, nút **Allow this time** sẽ bị tắt. Khi chọn checkbox cho phép, nút **Block this time** sẽ bị tắt.
+- **Always allow [nguồn] to open new tabs** — Các lần truy cập từ tên miền này trong tương lai sẽ được tự động cho phép. Tắt nút **Block this time**.
+- **Always block [nguồn] from opening new tabs** — Các lần truy cập từ tên miền này trong tương lai sẽ bị chặn mà không cần hỏi. Tắt nút **Allow this time**.
+- **Block all network requests to [đích]** — Tất cả request đến tên miền này (script, ảnh, iframe, v.v.) sẽ bị chặn ở tầng mạng. Trang tự động tải lại. Tắt nút **Allow this time**. *(Chỉ hiện khi tên miền đích khác tên miền nguồn.)*
 
 ### Popup tiện ích
 Nhấn vào biểu tượng tiện ích để quản lý danh sách thủ công:
