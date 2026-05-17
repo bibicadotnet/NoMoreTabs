@@ -1,7 +1,0 @@
-.is-catfish,
-.modal-backdrop,
-.sspp-modal,
-.sspp-area,
-.swiper-slide:has(> .sspp-area) {
-    display: none !important;
-}
