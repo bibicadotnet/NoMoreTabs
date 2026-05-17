@@ -34,6 +34,7 @@
     };
 
     let popupPending = false;
+    let siteHasAds = false;
     const origPlay = HTMLMediaElement.prototype.play;
 
     const freezePage = () => {
@@ -53,7 +54,7 @@
         document.getElementById('nmt-freeze')?.remove();
     };
 
-    const askPopup = (url, name, specs) => {
+    const askPopup = (url, name, specs, isNav = false) => {
         popupPending = true;
         freezePage();
         let resolved = url;
@@ -63,7 +64,8 @@
             url: resolved,
             name,
             specs,
-            source: location.hostname
+            source: location.hostname,
+            isNav
         }, '*');
     };
 
@@ -79,8 +81,8 @@
     const interceptedOpen = function (url, name, specs) {
         const targetUrl = url || 'about:blank';
         const action = getPopupAction();
-        if (action === 'BLOCK') return null;
-        if (action === 'ASK') { askPopup(targetUrl, name, specs); return null; }
+        if (action === 'BLOCK') { siteHasAds = true; return null; }
+        if (action === 'ASK') { siteHasAds = true; askPopup(targetUrl, name, specs); return null; }
         return originalOpen.call(window, url, name, specs);
     };
 
@@ -142,13 +144,32 @@
         }
     } catch (_) { }
 
+    if (window.navigation) {
+        window.navigation.addEventListener('navigate', e => {
+            if (!siteHasAds) return;
+            if (e.hashChange || e.downloadRequest) return;
+            if (bypassNext) { bypassNext = false; return; }
+            try {
+                const dest = new URL(e.destination.url);
+                if (dest.origin === location.origin) {
+                    if (popupPending) e.preventDefault();
+                    return;
+                }
+            } catch (_) { return; }
+            const action = getPopupAction();
+            if (action === 'BLOCK') { e.preventDefault(); return; }
+            if (action === 'ASK') { e.preventDefault(); askPopup(e.destination.url, '_self', '', true); }
+        });
+    }
+
 
     const navToken = Math.random().toString(36).slice(2);
     document.documentElement.setAttribute('data-nmt-nav-token', navToken);
     window.addEventListener('message', e => {
         if (e.data?.action === 'NMT_DO_NAV' && e.data.token === navToken) {
             bypassNext = true;
-            origAssign.call(location, e.data.url);
+            if (origAssign) origAssign.call(location, e.data.url);
+            else location.href = e.data.url;
         }
     });
 
