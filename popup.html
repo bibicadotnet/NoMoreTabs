@@ -12,7 +12,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      width: 340px;
+      width: 360px;
       background: #f8fafc;
       color: #1e293b;
       font-size: 13px;
@@ -71,12 +71,24 @@
     }
 
     .section {
-      padding: 14px 16px 10px;
       border-bottom: 1px solid #e2e8f0;
     }
 
-    .section:last-child {
+    .section:last-of-type {
       border-bottom: none;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .section-header:hover {
+      background: #f1f5f9;
     }
 
     .section-title {
@@ -85,7 +97,46 @@
       text-transform: uppercase;
       letter-spacing: .06em;
       color: #64748b;
-      margin-bottom: 10px;
+    }
+
+    .section-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-count {
+      font-size: 10px;
+      font-weight: 700;
+      background: #e2e8f0;
+      color: #64748b;
+      padding: 1px 6px;
+      border-radius: 10px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    .count-red { background: #fee2e2; color: #dc2626; }
+    .count-green { background: #dcfce7; color: #16a34a; }
+    .count-orange { background: #ffedd5; color: #ea580c; }
+
+    .section-arrow {
+      font-size: 10px;
+      color: #94a3b8;
+      transition: transform 0.2s;
+    }
+
+    .section.open .section-arrow {
+      transform: rotate(180deg);
+    }
+
+    .section-body {
+      display: none;
+      padding: 0 16px 12px;
+    }
+
+    .section.open .section-body {
+      display: block;
     }
 
     .add-row {
@@ -123,57 +174,49 @@
       background: #0f172a;
     }
 
-    ul {
-      list-style: none;
-      max-height: 110px;
-      overflow-y: auto;
-    }
-
-    ul li {
+    .chip-list {
       display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .chip {
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 5px 0;
-      border-bottom: 1px solid #f1f5f9;
-    }
-
-    ul li:last-child {
-      border-bottom: none;
-    }
-
-    .host {
-      font-size: 12px;
+      gap: 4px;
+      background: #e2e8f0;
       color: #334155;
+      font-size: 11px;
+      padding: 3px 6px 3px 8px;
+      border-radius: 12px;
+      max-width: 100%;
+    }
+
+    .chip-host {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .delete-btn {
+    .chip-x {
       background: none;
       border: none;
       color: #94a3b8;
-      font-size: 16px;
+      font-size: 13px;
       cursor: pointer;
-      padding: 0 4px;
+      padding: 0 2px;
+      line-height: 1;
       flex-shrink: 0;
     }
 
-    .delete-btn:hover {
+    .chip-x:hover {
       color: #ef4444;
     }
 
     .empty-msg {
       font-size: 12px;
       color: #94a3b8;
-      padding: 4px 0;
-    }
-
-    .note {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-top: 6px;
-      line-height: 1.4;
+      padding: 2px 0;
     }
 
     #toast {
@@ -212,39 +255,60 @@
   </div>
 
   <!-- Block popups by SOURCE -->
-  <div class="section">
-    <div class="section-title">🚫 Block popups from domain</div>
-    <p class="note" style="margin-bottom:8px">Which domains are not allowed to open new tabs</p>
-    <div class="add-row">
-      <input id="new-popup-block" placeholder="example.com or *.example.com" type="text">
-      <button id="add-popup-block-btn">+</button>
+  <div class="section" id="sec-popup-block">
+    <div class="section-header" data-toggle="sec-popup-block">
+      <span class="section-title">🚫 Block popups from domain</span>
+      <span class="section-meta">
+        <span class="section-count count-red" id="count-popup-block">0</span>
+        <span class="section-arrow">▼</span>
+      </span>
     </div>
-    <ul id="popup-blocklist"></ul>
-    <p id="empty-popup-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
+    <div class="section-body">
+      <div class="add-row">
+        <input id="new-popup-block" placeholder="example.com or *.example.com" type="text">
+        <button id="add-popup-block-btn">+</button>
+      </div>
+      <div class="chip-list" id="popup-blocklist"></div>
+      <p id="empty-popup-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
+    </div>
   </div>
 
   <!-- Allow popups by SOURCE -->
-  <div class="section">
-    <div class="section-title">✅ Allow popups from domain</div>
-    <p class="note" style="margin-bottom:8px">Domains allowed to freely open new tabs</p>
-    <div class="add-row">
-      <input id="new-popup-allow" placeholder="example.com or *.example.com" type="text">
-      <button id="add-popup-allow-btn">+</button>
+  <div class="section" id="sec-popup-allow">
+    <div class="section-header" data-toggle="sec-popup-allow">
+      <span class="section-title">✅ Allow popups from domain</span>
+      <span class="section-meta">
+        <span class="section-count count-green" id="count-popup-allow">0</span>
+        <span class="section-arrow">▼</span>
+      </span>
     </div>
-    <ul id="popup-allowlist"></ul>
-    <p id="empty-popup-allow-msg" class="empty-msg" style="display:none">No domains added yet</p>
+    <div class="section-body">
+      <div class="add-row">
+        <input id="new-popup-allow" placeholder="example.com or *.example.com" type="text">
+        <button id="add-popup-allow-btn">+</button>
+      </div>
+      <div class="chip-list" id="popup-allowlist"></div>
+      <p id="empty-popup-allow-msg" class="empty-msg" style="display:none">No domains added yet</p>
+    </div>
   </div>
 
   <!-- Block navigation by DESTINATION -->
-  <div class="section">
-    <div class="section-title">🔗 Block navigation to domain</div>
-    <p class="note" style="margin-bottom:8px">Block clicks to these domains (add manually)</p>
-    <div class="add-row">
-      <input id="new-nav-block" placeholder="adsite.com or *.adsite.com" type="text">
-      <button id="add-nav-block-btn">+</button>
+  <div class="section" id="sec-nav-block">
+    <div class="section-header" data-toggle="sec-nav-block">
+      <span class="section-title">🔗 Block navigation to domain</span>
+      <span class="section-meta">
+        <span class="section-count count-orange" id="count-nav-block">0</span>
+        <span class="section-arrow">▼</span>
+      </span>
     </div>
-    <ul id="nav-blocklist"></ul>
-    <p id="empty-nav-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
+    <div class="section-body">
+      <div class="add-row">
+        <input id="new-nav-block" placeholder="adsite.com or *.adsite.com" type="text">
+        <button id="add-nav-block-btn">+</button>
+      </div>
+      <div class="chip-list" id="nav-blocklist"></div>
+      <p id="empty-nav-block-msg" class="empty-msg" style="display:none">No domains added yet</p>
+    </div>
   </div>
 
   <div id="toast"></div>

@@ -94,7 +94,7 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
 
     const cbAllow = shadow.getElementById("cb-allow");
     const cbBlock = shadow.getElementById("cb-block");
-    const cbDest  = shadow.getElementById("cb-dest");
+    const cbDest = shadow.getElementById("cb-dest");
     shadow.getElementById("dest-host-label").textContent = destHost;
     if (destHost && destHost !== source) {
         const pal = JSON.parse(document.documentElement.getAttribute('data-nmt-pal') || '[]');
@@ -104,7 +104,7 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
         }
     }
 
-    const btnOpen  = shadow.getElementById("btn-open");
+    const btnOpen = shadow.getElementById("btn-open");
     const btnBlock = shadow.getElementById("btn-block");
 
     const updateButtons = () => {
@@ -136,7 +136,7 @@ const showPopup = (url, source, name = "_blank", specs = "", isNav = false) => {
     const saveChecked = () => {
         if (cbAllow.checked) saveSource(source, 'allow');
         if (cbBlock.checked) saveSource(source, 'block');
-        if (cbDest.checked)  saveDestBlock(destHost);
+        if (cbDest.checked) saveDestBlock(destHost);
     };
 
     btnOpen.onclick = () => {

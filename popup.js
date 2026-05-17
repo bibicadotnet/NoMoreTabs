@@ -40,45 +40,42 @@ function isDomainInList(domain, list) {
     });
 }
 
-function escapeHtml(s) {
-    const d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
-
-function renderList(storageKey, listId, emptyId, onRemove) {
+function renderList(storageKey, listId, emptyId, countId, onRemove) {
     chrome.storage.sync.get([storageKey], data => {
         const items = data[storageKey] || [];
-        const ul = document.getElementById(listId);
+        const container = document.getElementById(listId);
         const em = document.getElementById(emptyId);
-        ul.innerHTML = '';
+        const badge = document.getElementById(countId);
+        container.innerHTML = '';
+        badge.textContent = items.length;
         if (items.length === 0) { em.style.display = 'block'; return; }
         em.style.display = 'none';
         items.forEach(item => {
-            const li = document.createElement('li');
-            const span = document.createElement('span');
-            span.className = 'host';
-            span.textContent = item;
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            const host = document.createElement('span');
+            host.className = 'chip-host';
+            host.textContent = item;
             const btn = document.createElement('button');
-            btn.className = 'delete-btn';
+            btn.className = 'chip-x';
             btn.title = 'Remove';
             btn.textContent = '\u00d7';
             btn.addEventListener('click', () => onRemove(item));
-            li.appendChild(span);
-            li.appendChild(btn);
-            ul.appendChild(li);
+            chip.appendChild(host);
+            chip.appendChild(btn);
+            container.appendChild(chip);
         });
     });
 }
 
 function renderPopupBlocklist() {
-    renderList('popupBlock', 'popup-blocklist', 'empty-popup-block-msg', removeFromPopupBlock);
+    renderList('popupBlock', 'popup-blocklist', 'empty-popup-block-msg', 'count-popup-block', removeFromPopupBlock);
 }
 function renderPopupAllowlist() {
-    renderList('popupAllow', 'popup-allowlist', 'empty-popup-allow-msg', removeFromPopupAllow);
+    renderList('popupAllow', 'popup-allowlist', 'empty-popup-allow-msg', 'count-popup-allow', removeFromPopupAllow);
 }
 function renderNavBlocklist() {
-    renderList('navBlock', 'nav-blocklist', 'empty-nav-block-msg', removeFromNavBlock);
+    renderList('navBlock', 'nav-blocklist', 'empty-nav-block-msg', 'count-nav-block', removeFromNavBlock);
 }
 
 function addToList(input, targetKey, otherKeys) {
@@ -181,4 +178,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('new-nav-block').onkeypress = e => {
         if (e.key === 'Enter') addToNavBlock(e.target.value);
     };
+
+    // Collapsible sections
+    document.querySelectorAll('.section-header').forEach(header => {
+        header.addEventListener('click', () => {
+            header.closest('.section').classList.toggle('open');
+        });
+    });
 });

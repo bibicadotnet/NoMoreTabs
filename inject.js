@@ -1,4 +1,4 @@
-(function() {
+(function () {
     'use strict';
 
     const checkMatch = (host, list) => {
@@ -15,7 +15,7 @@
         let topHost;
         try {
             topHost = new URL(window.top.location.href).hostname.toLowerCase();
-        } catch(e) {
+        } catch (e) {
             return 'ASK';
         }
 
@@ -29,7 +29,7 @@
             const dest = new URL(url, location.href);
             const nbl = JSON.parse(document.documentElement.getAttribute('data-nmt-nbl') || '[]');
             if (checkMatch(dest.hostname.toLowerCase(), nbl)) return 'BLOCK';
-        } catch(e) {}
+        } catch (e) { }
         return 'ALLOW';
     };
 
@@ -52,21 +52,21 @@
 
     const originalOpen = window.open;
 
-    const interceptedOpen = function(url, name, specs) {
+    const interceptedOpen = function (url, name, specs) {
         const targetUrl = url || 'about:blank';
         const action = getPopupAction();
         if (action === 'BLOCK') return null;
-        if (action === 'ASK')   { askPopup(targetUrl, name, specs); return null; }
+        if (action === 'ASK') { askPopup(targetUrl, name, specs); return null; }
         return originalOpen.call(window, url, name, specs);
     };
 
     try {
         Object.defineProperty(window, 'open', {
             get: () => interceptedOpen,
-            set: () => {},
+            set: () => { },
             configurable: true
         });
-    } catch(e) {
+    } catch (e) {
         window.open = interceptedOpen;
     }
 
@@ -79,7 +79,7 @@
                 if (!popupPending) doNavigate(url);
                 return;
             }
-        } catch(e) { doNavigate(url); return; }
+        } catch (e) { doNavigate(url); return; }
 
         const action = getPopupAction();
         if (action === 'ALLOW') { doNavigate(url); return; }
@@ -88,22 +88,22 @@
     };
 
     const locProto = Location.prototype;
-    const origAssign  = locProto.assign;
+    const origAssign = locProto.assign;
     const origReplace = locProto.replace;
 
     try {
         Object.defineProperty(locProto, 'assign', {
-            value: function(url) { interceptNav(String(url), u => origAssign.call(this, u)); },
+            value: function (url) { interceptNav(String(url), u => origAssign.call(this, u)); },
             writable: true, configurable: true
         });
-    } catch(_) {}
+    } catch (_) { }
 
     try {
         Object.defineProperty(locProto, 'replace', {
-            value: function(url) { interceptNav(String(url), u => origReplace.call(this, u)); },
+            value: function (url) { interceptNav(String(url), u => origReplace.call(this, u)); },
             writable: true, configurable: true
         });
-    } catch(_) {}
+    } catch (_) { }
 
     try {
         const hrefDesc = Object.getOwnPropertyDescriptor(locProto, 'href');
@@ -116,24 +116,8 @@
                 enumerable: hrefDesc.enumerable
             });
         }
-    } catch(_) {}
+    } catch (_) { }
 
-    if (window.navigation) {
-        window.navigation.addEventListener('navigate', e => {
-            if (e.hashChange || e.downloadRequest) return;
-            if (bypassNext) { bypassNext = false; return; }
-            try {
-                const dest = new URL(e.destination.url);
-                if (dest.origin === location.origin) {
-                    if (popupPending) e.preventDefault();
-                    return;
-                }
-            } catch(_) { return; }
-            const action = getPopupAction();
-            if (action === 'BLOCK') { e.preventDefault(); return; }
-            if (action === 'ASK')   { e.preventDefault(); askPopup(e.destination.url, '_self', ''); }
-        });
-    }
 
     const navToken = Math.random().toString(36).slice(2);
     document.documentElement.setAttribute('data-nmt-nav-token', navToken);
@@ -167,7 +151,7 @@
             try {
                 const dest = new URL(a.href, location.href);
                 if (dest.origin === location.origin) return;
-            } catch(_) { return; }
+            } catch (_) { return; }
 
             const action = getPopupAction();
             if (action === 'BLOCK') {
@@ -187,10 +171,10 @@
     };
 
     document.addEventListener('mousedown', handleLinkEvent, true);
-    document.addEventListener('click',     handleLinkEvent, true);
+    document.addEventListener('click', handleLinkEvent, true);
 
     const originalClick = HTMLElement.prototype.click;
-    HTMLElement.prototype.click = function() {
+    HTMLElement.prototype.click = function () {
         if (this.tagName === 'A' && this.href) {
             try {
                 const dest = new URL(this.href, location.href);
@@ -204,7 +188,7 @@
                         if (action === 'ASK') { askPopup(this.href); return; }
                     }
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
         return originalClick.call(this);
     };
